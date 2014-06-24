@@ -1,0 +1,24 @@
+tbstack -- fast stack trace utility.
+
+A primary design goal is to minimize performance impact on a process to
+make it possible to run it in low-latency systems. It is achieved by
+copying contents of stack regions when the process is frozen and unwinding
+stack when the process continues working. The idea was inspired by perf
+tool.
+
+The program uses POSIX, Linux API, and libunwind.
+
+usage:    tbstack <pid>
+
+options:  --help               show help
+          --ignore-deleted     try to open shared objects marked as deleted
+          --proc-mem           prefer reading /proc/pid/mem (default on systems
+                               with kernel older than 3.2. on modern kernels
+                               default flavor is process_vm_readv)
+          --ptrace             use libunwind-ptrace interface (slower)
+          --show-rsp           show %rsp in second column
+          --stack-size <size>  maximum stack size to copy (default is current
+                               RLIMIT_STACK)
+          --stop-timeout       timeout for waiting the process to freeze in
+                               milliseconds. default value is 1000
+          --verbose            verbose error messages.

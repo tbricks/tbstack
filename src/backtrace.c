@@ -1,0 +1,162 @@
+/*
+ * tbstack -- fast stack trace utility
+ *
+ * Copyright (c) 2014, Tbricks AB
+ * All rights reserved.
+ */
+
+#include <libunwind.h>
+#include <libunwind-ptrace.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "backtrace.h"
+#include "proc.h"
+#include "snapshot.h"
+
+extern unw_accessors_t snapshot_addr_space_accessors;
+
+extern int opt_show_rsp;
+extern int opt_verbose;
+
+static int backtrace_thread(unw_accessors_t *accessors, void *arg)
+{
+    unw_addr_space_t addr_space;
+    unw_cursor_t cursor;
+    int rc = 0, n = 0;
+
+    if ((addr_space = unw_create_addr_space(accessors, 0)) == NULL) {
+        fprintf(stderr, "failed to create address space for unwinding\n");
+        return -1;
+    }
+
+    if ((rc = unw_init_remote(&cursor, addr_space, arg)) < 0) {
+        fprintf(stderr, "failed to init cursor for unwinding: rc=%d\n", rc);
+        return -1;
+    }
+
+    do {
+        unw_word_t ip, sp = -1, off;
+        static char buf[512];
+        size_t len;
+
+        if ((rc = unw_get_reg(&cursor, UNW_REG_IP, &ip)) < 0) {
+            fprintf(stderr, "failed to get IP: rc=%d\n", rc);
+            break;
+        }
+
+        buf[0] = '\0';
+        unw_get_proc_name(&cursor, buf, sizeof(buf), &off);
+
+        if (buf[0] == '\0') {
+            buf[0] = '?';
+            buf[1] = '\0';
+            len = 1;
+        } else {
+            len = strlen(buf);
+        }
+
+        if (len >= sizeof(buf) - 32)
+            len = sizeof(buf) - 32;
+
+        if (!ip)
+            break;
+
+        if (off) {
+            sprintf(buf + len, " + 0x%lx", (unsigned long)off);
+        }
+        if (!opt_show_rsp) {
+            printf(" %016lx  %s\n", (long)ip, buf);
+        } else {
+            unw_get_reg(&cursor, UNW_REG_SP, &sp);
+            printf(" %016lx  %016lx  %s\n", (long)ip, (long)sp, buf);
+        }
+
+        if ((rc = unw_step(&cursor)) < 0) {
+            if (!opt_show_rsp)
+                printf(" ????????????????  <stack breaks here>\n");
+            else
+                printf(" ????????????????  ????????????????  <stack breaks here>\n");
+
+            if (opt_verbose) {
+                fprintf(stderr, "unwind step failed: n=%d rc=%d\n", n, rc);
+            }
+            break;
+        }
+
+        if (++n == 64 && rc) {
+            puts(" ????????????????  <stack is too long>\n");
+            break;
+        }
+    } while (rc > 0);
+
+    unw_destroy_addr_space(addr_space);
+
+    return rc;
+}
+
+int backtrace_snapshot(int pid)
+{
+    int i, rc = 0;
+    struct snapshot *snap;
+    
+    if ((snap = get_snapshot(pid)) == NULL)
+        return -1;
+
+    for (i = 0; i < snap->num_threads; ++i) {
+        printf("--------------------  thread %d (%d)  --------------------\n",
+               i+1, snap->tids[i]);
+
+        snap->cur_thr = i;
+        if (backtrace_thread(&snapshot_addr_space_accessors, snap) < 0)
+            rc = -1;
+    }
+
+    snapshot_destroy(snap);
+    return rc;
+}
+
+int backtrace_ptrace(int pid)
+{
+    int i, count, rc = 0;
+    int *threads = NULL;
+
+    count = get_threads(pid, &threads);
+    if (!count || threads == NULL)
+        return -1;
+
+    if (attach_process(pid) < 0)
+        return -1;
+
+    for (i = 0; i < count; ++i) {
+        void *upt_info;
+
+        printf("--------------------  thread %d (%d)  --------------------\n",
+               i+1, threads[i]);
+
+        if (i > 0 && attach_thread(threads[i]) < 0) {
+            rc = -1;
+            break;
+        }
+
+        upt_info = _UPT_create(threads[i]);
+
+        if (backtrace_thread(&_UPT_accessors, upt_info) < 0)
+            rc = -1;
+
+        _UPT_destroy(upt_info);
+
+        if (i > 0 && detach_thread(threads[i]))
+            rc = -1;
+        if (rc < 0)
+            break;
+    }
+
+    free(threads);
+
+    if (detach_process(pid) < 0)
+        return -1;
+
+    return rc;
+}
