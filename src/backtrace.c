@@ -6,10 +6,13 @@
  */
 
 #include <libunwind.h>
-#include <libunwind-ptrace.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#if !defined (NO_LIBUNWIND_PTRACE)
+#include <libunwind-ptrace.h>
+#endif
 
 #include "backtrace.h"
 #include "proc.h"
@@ -119,6 +122,7 @@ int backtrace_snapshot(int pid)
 
 int backtrace_ptrace(int pid)
 {
+#if !defined (NO_LIBUNWIND_PTRACE)
     int i, count, rc = 0;
     int *threads = NULL;
 
@@ -159,4 +163,8 @@ int backtrace_ptrace(int pid)
         return -1;
 
     return rc;
+
+#else
+    return -1;
+#endif /* NO_LIBUNWIND_PTRACE */
 }

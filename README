@@ -1,3 +1,6 @@
+--------------------------------------------------------------------------------
+DESCRIPTION
+
 tbstack -- fast stack trace utility.
 
 A primary design goal is to minimize performance impact on a process to
@@ -7,6 +10,34 @@ stack when the process continues working. The idea was inspired by perf
 tool.
 
 The program uses POSIX, Linux API, and libunwind.
+
+--------------------------------------------------------------------------------
+COMPATIBILITY
+
+This utility is intended for use with Linux on x86_64.
+
+Libraries: libelf, libunwind. It is recommended to get the latest version of
+libunwind.
+
+--------------------------------------------------------------------------------
+INSTALLATION
+
+In simple case you only need to run make:
+
+    $ make
+    # make install
+
+Other options are available:
+
+    $ make LIBUNWIND_DIR=/opt/libunwind BINDIR=/opt/tbstack/bin \
+        NO_LIBUNWIND_PTRACE=1
+
+    LIBUNWIND_DIR          libunwind installation prefix.
+    BINDIR                 tbstack binary will be installed there.
+    NO_LIBUNWIND_PTRACE    1 to disable support for libunwind-ptrace.
+
+--------------------------------------------------------------------------------
+USAGE
 
 usage:    tbstack <pid>
 

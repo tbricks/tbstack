@@ -45,7 +45,9 @@ static int usage(const char *name)
 "          --proc-mem           prefer reading /proc/pid/mem (default on systems\n"
 "                               with kernel older than 3.2. on modern kernels\n"
 "                               default flavor is process_vm_readv)\n"
+#if !defined (NO_LIBUNWIND_PTRACE)
 "          --ptrace             use libunwind-ptrace interface (slower)\n"
+#endif
 "          --show-rsp           show %%rsp in second column\n"
 "          --stack-size <size>  maximum stack size to copy (default is current\n"
 "                               RLIMIT_STACK)\n"
@@ -86,6 +88,10 @@ static void parse_options(int argc, char **argv)
                 break;
 
             case 1:
+#if defined (NO_LIBUNWIND_PTRACE)
+                fprintf(stderr, "support for libunwind-ptrace is disabled\n");
+                exit(1);
+#endif
                 opt_ptrace = 1;
                 break;
 
