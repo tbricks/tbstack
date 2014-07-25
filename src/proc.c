@@ -40,6 +40,7 @@ int stopped_pid = 0;
 extern int stop_timeout;
 static int sleep_time = 0;
 
+/* for summary */
 int sleep_count = 0;
 size_t total_length = 0;
 
@@ -150,6 +151,9 @@ int print_proc_maps(int pid)
     return system(cmd);
 }
 
+/*
+ * filter for scandir(). choose only thread identifiers
+ */
 static int dir_select(const struct dirent *entry)
 {
     const char *c = entry->d_name;

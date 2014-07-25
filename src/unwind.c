@@ -18,13 +18,18 @@
 #include <stdlib.h>
 #include <sys/user.h>
 
+/*
+ * search unwind table for a procedure (used by find_proc_info)
+ */
 #define search_unwind_table UNW_OBJ(dwarf_search_unwind_table)
 
 extern int search_unwind_table(unw_addr_space_t as, unw_word_t ip,
         unw_dyn_info_t *di, unw_proc_info_t *pip,
         int need_unwind_info, void *arg);
 
-
+/*
+ * get dwarf encoded value
+ */
 static ssize_t dw_get_value(char *data, unsigned char enc,
         uint64_t cur, uint64_t *value)
 {
@@ -95,6 +100,9 @@ static ssize_t dw_get_value(char *data, unsigned char enc,
     return size;
 }
 
+/*
+ * parse contents of .eh_frame_hdr
+ */
 static int parse_eh_frame_hdr(char *data, size_t pos,
         uint64_t *table_data, uint64_t *fde_count)
 {
@@ -128,6 +136,9 @@ static int parse_eh_frame_hdr(char *data, size_t pos,
     return 0;
 }
 
+/*
+ * find section .eh_frame_hdr in ELF binary
+ */
 static int find_eh_frame_hdr(int fd,
         uint64_t *table_data, uint64_t *segbase, uint64_t *fde_count)
 {
@@ -179,6 +190,9 @@ elf_section_offset_end:
     return (offset ? 0 : -1);
 }
 
+/*
+ * dynamic array of symbols
+ */
 struct symbols
 {
     GElf_Sym *s_data;
@@ -186,6 +200,9 @@ struct symbols
     size_t s_cap;
 };
 
+/*
+ * add a symbol to array
+ */
 static void push_symbol(struct symbols *array, const GElf_Sym *s)
 {
     ++array->s_size;
@@ -199,6 +216,9 @@ static void push_symbol(struct symbols *array, const GElf_Sym *s)
     memcpy(array->s_data + (array->s_size-1), s, sizeof(GElf_Sym));
 }
 
+/*
+ * symbol comparison function for qsort
+ */
 static int sym_compar(const void *v1, const void *v2)
 {
     const GElf_Sym *s1 = v1;
@@ -211,6 +231,15 @@ static int sym_compar(const void *v1, const void *v2)
     return 0;
 }
 
+/*
+ * get function name
+ *
+ * fd: open binary
+ * load: mmap address
+ * offset: file offset
+ * addr: ip value
+ * off: offset within the function
+ */
 static char *proc_name(int fd, uint64_t load, uint64_t offset,
         uint64_t addr, unw_word_t *off)
 {
@@ -221,6 +250,9 @@ static char *proc_name(int fd, uint64_t load, uint64_t offset,
     struct symbols all;
     size_t pnum, i;
 
+    /*
+     * open ELF handle
+     */
     elf = elf_begin(fd, ELF_C_READ_MMAP, NULL);
     if (!elf) {
         int n = elf_errno();
@@ -228,6 +260,9 @@ static char *proc_name(int fd, uint64_t load, uint64_t offset,
         return NULL;
     }
 
+    /*
+     * initialize dynamic array
+     */
     all.s_cap = 64;
     all.s_size = 0;
     all.s_data = malloc(all.s_cap * sizeof(GElf_Sym));
@@ -235,6 +270,12 @@ static char *proc_name(int fd, uint64_t load, uint64_t offset,
     if (elf_getphdrnum (elf, &pnum))
         goto proc_name_end;
 
+    /*
+     * guess whether the code is position-independent or not.
+     * the code is supposed to be position-dependent
+     * (i.e. address should be adjusted) when the mapping
+     * address is equal to ELF segment virtual address
+     */
     for (i = 0; i < pnum; ++i) {
         GElf_Phdr phdr;
         if (gelf_getphdr(elf, i, &phdr) == NULL)
@@ -249,10 +290,16 @@ static char *proc_name(int fd, uint64_t load, uint64_t offset,
     }
 
     if (pic) {
+        /*
+         * adjust address for position-independent code
+         */
         addr -= load;
         addr += offset;
     }
 
+    /*
+     * search symtab or dynsym section
+     */
     while ((scn = elf_nextscn(elf, scn)) != NULL) {
         GElf_Shdr shdr;
 
@@ -284,6 +331,9 @@ static char *proc_name(int fd, uint64_t load, uint64_t offset,
                 if (ELF64_ST_TYPE(s.st_info) != STT_FUNC)
                     continue;
 
+                /*
+                 * exact match
+                 */
                 if (addr >= s.st_value && addr < (s.st_value + s.st_size)) {
                     str = elf_strptr(elf, shdr.sh_link, s.st_name);
                     if (str == NULL) {
@@ -299,11 +349,20 @@ static char *proc_name(int fd, uint64_t load, uint64_t offset,
 
                 /* store section link */
                 s.st_shndx = shdr.sh_link;
+                /*
+                 * save symbol in array
+                 */
                 push_symbol(&all, &s);
             }
         }
     }
 
+    /*
+     * sometimes function symbols have zero size but contain the code.
+     * common example is _start on most systems.
+     * in this case we try to find two adjacent symbols with first
+     * one of zero size
+     */
     if (!rc && str == NULL) {
         size_t i;
         qsort(all.s_data, all.s_size, sizeof(GElf_Sym), sym_compar);
@@ -333,6 +392,9 @@ proc_name_end:
     return str;
 }
 
+/*
+ * find unwind info for function
+ */
 static int find_proc_info(unw_addr_space_t as, unw_word_t ip,
         unw_proc_info_t *pip, int need_unwind_info, void *arg)
 {
@@ -367,16 +429,25 @@ static int find_proc_info(unw_addr_space_t as, unw_word_t ip,
     return -UNW_EINVAL;
 }
 
+/*
+ * put_unwind_info: do nothing
+ */
 static void put_unwind_info(unw_addr_space_t as,
         unw_proc_info_t *pip, void *arg)
 {}
 
+/*
+ * not used
+ */
 static int get_dyn_info_list_addr(unw_addr_space_t as,
         unw_word_t *dilap, void *arg)
 {
     return -UNW_ENOINFO;
 }
 
+/*
+ * read a word from memory. we use mem_map for that
+ */
 static int access_mem(unw_addr_space_t as, unw_word_t addr,
         unw_word_t *valp, int write, void *arg)
 {
@@ -390,6 +461,9 @@ static int access_mem(unw_addr_space_t as, unw_word_t addr,
     return mem_map_read_word(snap->map, (void *)addr, valp);
 }
 
+/*
+ * get register value
+ */
 static int access_reg(unw_addr_space_t as, unw_regnum_t reg,
         unw_word_t *val, int write, void *arg)
 {
@@ -459,6 +533,9 @@ static int access_reg(unw_addr_space_t as, unw_regnum_t reg,
     return 0;
 }
 
+/*
+ * floating point registers are not used
+ */
 static int access_fpreg(unw_addr_space_t as, unw_regnum_t regnum,
         unw_fpreg_t *fpvalp, int write, void *arg)
 {
@@ -466,12 +543,18 @@ static int access_fpreg(unw_addr_space_t as, unw_regnum_t regnum,
     return -UNW_ENOINFO;
 }
 
+/*
+ * not used
+ */
 static int resume(unw_addr_space_t as, unw_cursor_t *cp, void *arg)
 {
     fprintf(stderr, "resume is not supported\n");
     return -UNW_ENOINFO;
 }
 
+/*
+ * get function name callback
+ */
 static int get_proc_name(unw_addr_space_t as, unw_word_t addr, char *bufp,
         size_t buf_len, unw_word_t *offp, void *arg)
 {
@@ -499,6 +582,9 @@ static int get_proc_name(unw_addr_space_t as, unw_word_t addr, char *bufp,
     }
 
     if (name == NULL) {
+        /*
+         * if name cannot be resolved, print binary file name
+         */
         const char *base = basename(region->path);
         snprintf(bufp, buf_len, "?? (%s)", base);
         *offp = 0;
@@ -511,6 +597,9 @@ static int get_proc_name(unw_addr_space_t as, unw_word_t addr, char *bufp,
     return 0;
 }
 
+/*
+ * libunwind remote callbacks
+ */
 unw_accessors_t snapshot_addr_space_accessors = {
     .find_proc_info = find_proc_info,
     .put_unwind_info = put_unwind_info,

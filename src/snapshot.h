@@ -13,15 +13,26 @@ struct user_regs_struct;
 
 struct snapshot
 {
+    /* memory mapping, copied contents, open mmapped files */
     struct mem_map *map;
+    /* thread identifiers */
     int *tids;
+    /* number of threads */
     int num_threads;
+    /* current thread (used when unwinding stack) */
     int cur_thr;
+    /* per-thread registers */
     struct user_regs_struct *regs;
 };
 
+/*
+ * fill up snapshot structure for a process
+ */
 struct snapshot *get_snapshot(int pid);
 
+/*
+ * free resources
+ */
 void snapshot_destroy(struct snapshot *snap);
 
 #endif

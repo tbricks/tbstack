@@ -59,6 +59,9 @@ static int get_kernel_version(int *major, int *minor)
     return -1;
 }
 
+/*
+ * save process' memory maps, stack contents, thread identifiers and registers
+ */
 struct snapshot *get_snapshot(int pid)
 {
     struct snapshot *res;
@@ -76,10 +79,16 @@ struct snapshot *get_snapshot(int pid)
 
     res = calloc(1, sizeof(struct snapshot));
 
+    /*
+     * create memory_map structure corresponding to process' maps
+     */
     res->map = create_maps(pid);
     if (res->map == NULL)
         goto get_snapshot_fail;
 
+    /*
+     * get process' threads
+     */
     res->num_threads = get_threads(pid, &res->tids);
     if (res->num_threads < 0 || res->tids == NULL)
         goto get_snapshot_fail;
@@ -92,6 +101,11 @@ struct snapshot *get_snapshot(int pid)
         goto get_snapshot_fail;
     }
 
+    /*
+     * decide how to copy memory contents of the process. on newer kernels
+     * proc_vm_readv() is used by default. on older kernels or when the option
+     * --proc-mem is specified read the file /proc/<pid>/mem
+     */
     if (!opt_proc_mem) {
         if (get_kernel_version(&v_major, &v_minor) < 0)
             goto get_snapshot_fail;
@@ -106,15 +120,26 @@ struct snapshot *get_snapshot(int pid)
         goto get_snapshot_fail;
 
     for (i = 0; i < res->num_threads; ++i) {
+        /*
+         * we have already attached to main thread. call attach_thread()
+         * for other ones
+         */
         if (i > 0 && attach_thread(res->tids[i]) < 0)
             goto get_snapshot_fail_attached;
 
+        /*
+         * save thread's registers
+         */
         rc = ptrace(PTRACE_GETREGS, res->tids[i], NULL, &res->regs[i]);
         if (rc < 0) {
             perror("PTRACE_GETREGS");
             goto get_snapshot_fail_attached;
         }
 
+        /*
+         * save label on memory region. it will indicate that memory contents
+         * upper than this point (%rsp) will needed to unwind stacks
+         */
         label = res->regs[i].rsp & ~page;
         rc = mem_map_add_label(res->map, (void *)label, res->num_threads);
 
@@ -124,10 +149,18 @@ struct snapshot *get_snapshot(int pid)
             goto get_snapshot_fail_attached;
         }
 
+        /*
+         * detach from thread. it will still be frozen due to SIGSTOP
+         */
         if (i > 0 && detach_thread(res->tids[i]) < 0)
             goto get_snapshot_fail_attached;
     }
 
+    /*
+     * arrange data chunks to copy memory contents. in most cases the chunks
+     * will start from %rsp pointing somewhere in thread's stack
+     * to the end of the stack region
+     */
     stacks_cover = malloc(sizeof(struct mem_data_chunk*) * res->num_threads);
 
     n_frames = mem_map_build_label_cover(res->map, stack_size,
@@ -138,6 +171,9 @@ struct snapshot *get_snapshot(int pid)
         goto get_snapshot_fail_attached;
     }
 
+    /*
+     * copy memory contents
+     */
     rc = use_process_vm_readv ?
         copy_memory_process_vm_readv(pid, stacks_cover, n_frames) :
         copy_memory_proc_mem(pid, stacks_cover, n_frames);

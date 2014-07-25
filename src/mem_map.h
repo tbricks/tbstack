@@ -20,38 +20,59 @@
 
 struct mem_data_chunk
 {
+    /* start in process' address space */
     void *start;
+    /* allocated memory */
     char *data;
+    /* data size */
     size_t length;
+    /* next list element */
     struct mem_data_chunk *next;
 };
 
 struct mem_region
 {
+    /* start in process' address space */
     void *start;
+    /* memory length */
     size_t length;
+    /* file offset */
     size_t offset;
 
+    /* list of copied data chunks */
     struct mem_data_chunk *data_head;
+    /* sorted index for binary search */
     struct mem_data_chunk **data_index;
+    /* number of data chunks in index */
     size_t num_data_chunks;
+    /* cached result of previous lookup */
     struct mem_data_chunk *prev_accessed_chunk;
 
+    /* points to build label cover and copy needed memory contents */
     void **labels;
+    /* number of points (normally 1) */
     size_t num_labels;
 
+    /* path of mmapped file */
     char *path;
+    /* file descriptor */
     int fd;
+    /* type of region */
     int type;
 
+    /* next list element */
     struct mem_region *next;
 };
 
 struct mem_map
 {
+    /* list of regions */
     struct mem_region *list_head;
+    /* sorted index for binary search */
     struct mem_region **list_index;
+    /* number of regions in index */
     size_t num_regions;
+    /* cached result of previous lookup */
     struct mem_region *prev_accessed_region;
 };
 
