@@ -53,3 +53,30 @@ options:  --help               show help
           --stop-timeout       timeout for waiting the process to freeze in
                                milliseconds. default value is 1000
           --verbose            verbose error messages.
+
+--------------------------------------------------------------------------------
+HOW IT WORKS
+
+Binaries in mainstream Linux distributions are built with frame pointers
+omitted, so stack unwinding becomes more complex than just traversing a linked
+list. In order to move to the next frame we have to find corresponding
+frame description entry (FDE) in .eh_frame ELF section. It imples at least two
+binary searches: for a binary or shared object containing the code, and the
+FDE.
+
+One of solutions is examining process memory by ptrace and resolving next
+frame addresses while the process is stopped. Libunwind-ptrace implements such
+approach. Tbstack supports this interface as a flavor which can be enabled by
+--ptrace command line argument.
+
+In order to minimize performance impact tbstack uses another approach. At first
+it examines process' memory layout reading /proc/pid/maps. When the process is
+frozen (PTRACE_ATTACH to the main thread + SIGSTOP to start freezing other
+threads) it copies all threads' general-purpose registers and contents of stack
+from %rsp to end of memory region or up to maximum stack size if specified
+with --stack-size argument. System call proc_vm_readv is used on kernels from
+version 3.2, on older kernels data is read from /proc/pid/mem. The process
+continues execution. The collected data is enough to trace stacks. It is
+arranged in structures snapshot and mem_map and can be accessed through callback
+routines passed to libunwind by unw_create_addr_space (see
+http://www.nongnu.org/libunwind/man/unw_create_addr_space(3).html).
