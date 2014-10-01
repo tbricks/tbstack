@@ -372,7 +372,7 @@ static int addr_data_chunk_compar(const void *key, const void *member)
     return 1;
 }
 
-static struct mem_data_chunk *mem_region_find_data_chunk(
+struct mem_data_chunk *mem_region_find_data_chunk(
         struct mem_region *region, void *addr)
 {
     struct mem_data_chunk **chunk_ptr, *chunk;
@@ -616,7 +616,9 @@ struct mem_region *mem_map_get_file_region(struct mem_map *map, void *addr)
     }
 
     if (region->type != MEM_REGION_TYPE_MMAP &&
-            region->type != MEM_REGION_TYPE_DELETED) {
+            region->type != MEM_REGION_TYPE_DELETED &&
+            region->type != MEM_REGION_TYPE_VDSO &&
+            region->type != MEM_REGION_TYPE_VSYSCALL) {
         fprintf(stderr, "get file region: unexpected region type %s\n",
                 str_mem_region_type(region->type));
         mem_region_print(region);

@@ -139,7 +139,7 @@ static int parse_eh_frame_hdr(char *data, size_t pos,
 /*
  * find section .eh_frame_hdr in ELF binary
  */
-static int find_eh_frame_hdr(int fd,
+static int find_eh_frame_hdr(int fd, char *image, uint64_t size,
         uint64_t *table_data, uint64_t *segbase, uint64_t *fde_count)
 {
     Elf *elf;
@@ -148,10 +148,18 @@ static int find_eh_frame_hdr(int fd,
     GElf_Shdr shdr;
     uint64_t offset = 0;
 
-    elf = elf_begin(fd, ELF_C_READ_MMAP, NULL);
-    if (elf == NULL) {
-        fprintf(stderr, "elf_begin: %s\n", elf_errmsg(elf_errno()));
-        return 0;
+    if (fd > 0) {
+        elf = elf_begin(fd, ELF_C_READ_MMAP, NULL);
+        if (elf == NULL) {
+            fprintf(stderr, "elf_begin: %s\n", elf_errmsg(elf_errno()));
+            return 0;
+        }
+    } else {
+        elf = elf_memory(image, size);
+        if (elf == NULL) {
+            fprintf(stderr, "elf_memory: %s\n", elf_errmsg(elf_errno()));
+            return -1;
+        }
     }
 
     if (gelf_getehdr(elf, &ehdr) == NULL) {
@@ -393,6 +401,26 @@ proc_name_end:
 }
 
 /*
+ * get mmapped ELF image info
+ */
+static int get_elf_image_info(struct mem_region *region,
+        char **elf_image, uint64_t *elf_length, uint64_t ip)
+{
+    struct mem_data_chunk *chunk;
+
+    if ((chunk = mem_region_find_data_chunk(region, (void *)ip)) == NULL)
+        return -1;
+
+    if (chunk->data == NULL)
+        return -1;
+
+    *elf_image = chunk->data;
+    *elf_length = chunk->length;
+
+    return 0;
+}
+
+/*
  * find unwind info for function
  */
 static int find_proc_info(unw_addr_space_t as, unw_word_t ip,
@@ -400,6 +428,8 @@ static int find_proc_info(unw_addr_space_t as, unw_word_t ip,
 {
     struct snapshot *snap = arg;
     struct mem_region *region;
+    char *elf_image = NULL;
+    uint64_t elf_length = 0;
     unw_dyn_info_t di;
     uint64_t table_data, segbase, fde_count;
 
@@ -409,10 +439,16 @@ static int find_proc_info(unw_addr_space_t as, unw_word_t ip,
     if ((region = mem_map_get_file_region(snap->map, (void *)ip)) == NULL)
         return -UNW_EINVAL;
 
-    if (region->fd < 0)
+    if (region->fd < 0 && region->type != MEM_REGION_TYPE_VDSO
+            && region->type != MEM_REGION_TYPE_VSYSCALL)
         return -UNW_EINVAL;
 
-    if (!find_eh_frame_hdr(region->fd, &table_data, &segbase, &fde_count)) {
+    if (region->fd < 0 &&
+            get_elf_image_info(region, &elf_image, &elf_length, ip) < 0)
+        return -UNW_EINVAL;
+
+    if (!find_eh_frame_hdr(region->fd, elf_image, elf_length,
+                &table_data, &segbase, &fde_count)) {
         memset(&di, 0, sizeof(di));
 
         di.format = UNW_INFO_FORMAT_REMOTE_TABLE;
