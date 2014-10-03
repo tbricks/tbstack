@@ -136,6 +136,21 @@ static int parse_eh_frame_hdr(char *data, size_t pos,
     return 0;
 }
 
+static Elf *elf_start(int fd, char *image, uint64_t size)
+{
+    Elf *elf;
+
+    if (fd > 0) {
+        if ((elf = elf_begin(fd, ELF_C_READ_MMAP, NULL)) == NULL)
+            fprintf(stderr, "elf_begin: %s\n", elf_errmsg(elf_errno()));
+    } else {
+        if ((elf = elf_memory(image, size)) == NULL)
+            fprintf(stderr, "elf_memory: %s\n", elf_errmsg(elf_errno()));
+    }
+
+    return elf;
+}
+
 /*
  * find section .eh_frame_hdr in ELF binary
  */
@@ -148,19 +163,8 @@ static int find_eh_frame_hdr(int fd, char *image, uint64_t size,
     GElf_Shdr shdr;
     uint64_t offset = 0;
 
-    if (fd > 0) {
-        elf = elf_begin(fd, ELF_C_READ_MMAP, NULL);
-        if (elf == NULL) {
-            fprintf(stderr, "elf_begin: %s\n", elf_errmsg(elf_errno()));
-            return 0;
-        }
-    } else {
-        elf = elf_memory(image, size);
-        if (elf == NULL) {
-            fprintf(stderr, "elf_memory: %s\n", elf_errmsg(elf_errno()));
-            return -1;
-        }
-    }
+    if ((elf = elf_start(fd, image, size)) == NULL)
+        return -1;
 
     if (gelf_getehdr(elf, &ehdr) == NULL) {
         fprintf(stderr, "elf_getehdr: %s\n", elf_errmsg(elf_errno()));
@@ -248,25 +252,22 @@ static int sym_compar(const void *v1, const void *v2)
  * addr: ip value
  * off: offset within the function
  */
-static char *proc_name(int fd, uint64_t load, uint64_t offset,
-        uint64_t addr, unw_word_t *off)
+static char *proc_name(int fd, char *image, size_t size, uint64_t load,
+        uint64_t offset, uint64_t addr, unw_word_t *off)
 {
     Elf *elf;
     Elf_Scn *scn = NULL;
     char *str = NULL;
-    int rc = 0, pic = 1;
+    int rc = 0;
     struct symbols all;
     size_t pnum, i;
+    uint64_t vaddr = 0;
 
     /*
      * open ELF handle
      */
-    elf = elf_begin(fd, ELF_C_READ_MMAP, NULL);
-    if (!elf) {
-        int n = elf_errno();
-        fprintf(stderr, "elf_begin: %s\n", elf_errmsg(n));
+    if ((elf = elf_start(fd, image, size)) == NULL)
         return NULL;
-    }
 
     /*
      * initialize dynamic array
@@ -290,20 +291,17 @@ static char *proc_name(int fd, uint64_t load, uint64_t offset,
             goto proc_name_end;
         if (phdr.p_type != PT_LOAD)
             continue;
-        if (!(phdr.p_type & (PF_X | PF_R)))
+        if (phdr.p_flags != (PF_X | PF_R))
             continue;
-        if (phdr.p_vaddr == load) {
-            pic = 0;
-        }
+        vaddr = phdr.p_vaddr;
+        break;
     }
 
-    if (pic) {
-        /*
-         * adjust address for position-independent code
-         */
-        addr -= load;
-        addr += offset;
-    }
+    /*
+     * adjust address
+     */
+    addr -= load;
+    addr += offset;
 
     /*
      * search symtab or dynsym section
@@ -338,6 +336,11 @@ static char *proc_name(int fd, uint64_t load, uint64_t offset,
 
                 if (ELF64_ST_TYPE(s.st_info) != STT_FUNC)
                     continue;
+
+                /*
+                 * adjust symbol value
+                 */
+                s.st_value -= vaddr;
 
                 /*
                  * exact match
@@ -596,7 +599,7 @@ static int get_proc_name(unw_addr_space_t as, unw_word_t addr, char *bufp,
 {
     struct snapshot *snap = arg;
     struct mem_region *region;
-    char *name;
+    char *name = NULL;
 
     if (addr == 0)
         return -UNW_ENOINFO;
@@ -604,17 +607,23 @@ static int get_proc_name(unw_addr_space_t as, unw_word_t addr, char *bufp,
     if ((region = mem_map_get_file_region(snap->map, (void *)addr)) == NULL)
         return -UNW_ENOINFO;
 
-    if (region->fd < 0) {
-        if (region->type == MEM_REGION_TYPE_DELETED) {
-            const char *base = basename(region->path);
-            snprintf(bufp, buf_len, "?? (%s is deleted)", base);
-            *offp = 0;
-            return 0;
-        }
-        name = NULL;
-    } else {
-        name = proc_name(region->fd, (uint64_t)region->start,
-                region->offset, addr, offp);
+    if (region->fd < 0 && region->type == MEM_REGION_TYPE_DELETED) {
+        const char *base = basename(region->path);
+        snprintf(bufp, buf_len, "?? (%s is deleted)", base);
+        *offp = 0;
+        return 0;
+    } else if (region->type == MEM_REGION_TYPE_MMAP ||
+            region->type == MEM_REGION_TYPE_VDSO ||
+            region->type == MEM_REGION_TYPE_VSYSCALL) {
+        char *elf_image = NULL;
+        uint64_t elf_length = 0;
+
+        if (region->fd < 0 &&
+                get_elf_image_info(region, &elf_image, &elf_length, addr) < 0)
+            return -UNW_ENOINFO;
+
+        name = proc_name(region->fd, elf_image, elf_length,
+                (uint64_t)region->start, region->offset, addr, offp);
     }
 
     if (name == NULL) {
