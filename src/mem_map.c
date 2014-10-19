@@ -8,7 +8,6 @@
 #include "mem_map.h"
 #include "proc.h"
 
-#include <asm/vsyscall.h>
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -18,6 +17,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#ifndef VSYSCALL_START
+#define VSYSCALL_START (-10UL << 20)
+#endif
 
 extern int opt_verbose;
 extern int opt_ignore_deleted;
