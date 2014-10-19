@@ -207,10 +207,10 @@ static void setup_stack_size()
     }
 }
 
-static void check_process(int pid)
+static void check_process()
 {
     if (kill(pid, 0) < 0) {
-        fprintf(stderr, "%d: %s\n", pid, strerror(errno));
+        fprintf(stderr, "%s\n", strerror(errno));
         exit(1);
     }
 }
@@ -237,6 +237,7 @@ int main(int argc, char **argv)
     int rc = 0;
 
     parse_options(argc, argv);
+    check_process();
     check_libelf_version();
     setup_signals();
 
