@@ -124,6 +124,7 @@ struct snapshot *get_snapshot(int pid)
          * we have already attached to main thread. call attach_thread()
          * for other ones
          */
+        attached_tid = res->tids[i];
         if (i > 0 && attach_thread(res->tids[i]) < 0)
             goto get_snapshot_fail_attached;
 
