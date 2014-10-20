@@ -219,8 +219,9 @@ static void push_symbol(struct symbols *array, const GElf_Sym *s)
 {
     ++array->s_size;
     if (array->s_size > array->s_cap) {
+        GElf_Sym *new_data;
         array->s_cap <<= 1;
-        GElf_Sym *new_data = malloc(sizeof(GElf_Sym) * array->s_cap);
+        new_data = malloc(sizeof(GElf_Sym) * array->s_cap);
         memcpy(new_data, array->s_data, sizeof(GElf_Sym) * (array->s_size-1));
         free(array->s_data);
         array->s_data = new_data;
