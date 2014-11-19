@@ -280,12 +280,6 @@ static char *proc_name(int fd, char *image, size_t size, uint64_t load,
     if (elf_getphdrnum (elf, &pnum))
         goto proc_name_end;
 
-    /*
-     * guess whether the code is position-independent or not.
-     * the code is supposed to be position-dependent
-     * (i.e. address should be adjusted) when the mapping
-     * address is equal to ELF segment virtual address
-     */
     for (i = 0; i < pnum; ++i) {
         GElf_Phdr phdr;
         if (gelf_getphdr(elf, i, &phdr) == NULL)
@@ -293,6 +287,8 @@ static char *proc_name(int fd, char *image, size_t size, uint64_t load,
         if (phdr.p_type != PT_LOAD)
             continue;
         if (phdr.p_flags != (PF_X | PF_R))
+            continue;
+        if ((phdr.p_offset & ~(phdr.p_align - 1)) != offset)
             continue;
         vaddr = phdr.p_vaddr;
         break;
