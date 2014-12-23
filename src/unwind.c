@@ -313,7 +313,7 @@ static char *proc_name(int fd, char *image, size_t size, uint64_t load,
 
         if (shdr.sh_type == SHT_DYNSYM || shdr.sh_type == SHT_SYMTAB) {
             Elf_Data *data = NULL;
-            int symbol_count, i;
+            int symbol_count;
 
             if ((data = elf_getdata(scn, data)) == NULL) {
                 fprintf(stderr, "elf_getdata: %s\n", elf_errmsg(elf_errno()));
@@ -321,7 +321,7 @@ static char *proc_name(int fd, char *image, size_t size, uint64_t load,
             }
 
             symbol_count = shdr.sh_size / shdr.sh_entsize;
-            for (i = 0; i < symbol_count; ++i) {
+            for (i = 0; i < (size_t)symbol_count; ++i) {
                 GElf_Sym s;
 
                 if (gelf_getsym(data, i, &s) == NULL) {
@@ -372,7 +372,6 @@ static char *proc_name(int fd, char *image, size_t size, uint64_t load,
      * one of zero size
      */
     if (!rc && str == NULL) {
-        size_t i;
         qsort(all.s_data, all.s_size, sizeof(GElf_Sym), sym_compar);
         for (i = 0; i < (all.s_size-1); ++i) {
             const GElf_Sym *cur = all.s_data + i;
