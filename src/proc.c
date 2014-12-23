@@ -74,16 +74,19 @@ int proc_stopped(int pid)
 struct mem_map *create_maps(int pid)
 {
     FILE *f;
-    char buf[PATH_MAX+128];
+    char *buf = NULL, *str = NULL;
+    size_t total_read, capacity;
 
     size_t addr_start, addr_end, offset, len;
     char r, w, x, p;
     int dev_major, dev_minor, inode;
     char path[PATH_MAX];
-    int scan;
 
-    struct mem_map *map;
+    struct mem_map *map = NULL;
     struct mem_region *region;
+
+    capacity = 0x100000;
+    buf = calloc(1, capacity);
 
     sprintf(buf, "/proc/%d/maps", pid);
     if ((f = fopen(buf, "r")) == NULL) {
@@ -94,8 +97,37 @@ struct mem_map *create_maps(int pid)
     map = malloc(sizeof(struct mem_map));
     mem_map_init(map);
 
-    while (fgets(buf, sizeof(buf), f)) {
-        scan = sscanf(buf, "%lx-%lx %c%c%c%c %lx %x:%x %d %[^\t\n]",
+    memset(buf, 0, capacity);
+    total_read = 0;
+    while (!feof(f)) {
+        fread(&buf[total_read], capacity - total_read - 1, 1, f);
+        if (errno) {
+            perror("maps");
+            mem_map_destroy(map);
+            map = NULL;
+            goto create_maps_end;
+        }
+
+        total_read = strlen(buf);
+        if ((total_read + 1) == capacity) {
+            capacity *= 2;
+            buf = realloc(buf, capacity);
+            memset(&buf[total_read], 0, capacity - total_read);
+        } else {
+            buf[total_read] = '\0';
+        }
+    }
+
+    str = &buf[0];
+    while (*str) {
+        int scan;
+        char *next;
+
+        next = strchr(str, '\n');
+        if (next != NULL)
+            *next = '\0';
+
+        scan = sscanf(str, "%lx-%lx %c%c%c%c %lx %x:%x %d %[^\t\n]",
                 &addr_start, &addr_end,
                 &r, &w, &x, &p,
                 &offset,
@@ -104,8 +136,9 @@ struct mem_map *create_maps(int pid)
                 path);
 
         if (scan < 10) {
-            fprintf(stderr, "warning: unable to parse maps entry '%s'\n", buf);
-            continue;
+            fprintf(stderr, "warning: unable to parse maps "
+                    "entry '%s' (read %d)\n", str, scan);
+            break;
         }
 
         region = malloc(sizeof(struct mem_region));
@@ -135,12 +168,17 @@ struct mem_map *create_maps(int pid)
             map = NULL;
             break;
         }
+
+        if (next != NULL)
+            str = next + 1;
     }
 
     if (map != NULL)
         mem_map_create_region_index(map);
 
+create_maps_end:
     fclose(f);
+    free(buf);
     return map;
 }
 
