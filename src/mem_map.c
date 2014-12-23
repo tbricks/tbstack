@@ -517,7 +517,7 @@ int mem_map_add_region(struct mem_map *map, struct mem_region *region)
     region_ceil = (char *)region->start + region->length;
 
     if (prev != NULL && prev->next == NULL) {
-        if ((char *)region->start > ((char *)prev->start + prev->length)) {
+        if ((char *)region->start >= ((char *)prev->start + prev->length)) {
             prev->next = region;
             ++map->num_regions;
             map->prev_accessed_region = region;
