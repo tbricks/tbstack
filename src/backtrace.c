@@ -99,12 +99,12 @@ static int backtrace_thread(unw_accessors_t *accessors, void *arg)
     return rc;
 }
 
-int backtrace_snapshot(int pid)
+int backtrace_snapshot(int pid, int *tids, int nr_tids)
 {
     int i, rc = 0;
     struct snapshot *snap;
     
-    if ((snap = get_snapshot(pid)) == NULL)
+    if ((snap = get_snapshot(pid, tids, nr_tids)) == NULL)
         return -1;
 
     for (i = 0; i < snap->num_threads; ++i) {
@@ -120,7 +120,7 @@ int backtrace_snapshot(int pid)
     return rc;
 }
 
-int backtrace_ptrace(int pid)
+int backtrace_ptrace(int pid, int *tids, int nr_tids)
 {
 #if !defined (NO_LIBUNWIND_PTRACE)
     int i, count, rc = 0;
@@ -129,6 +129,15 @@ int backtrace_ptrace(int pid)
     count = get_threads(pid, &threads);
     if (!count || threads == NULL)
         return -1;
+
+    if (tids != NULL) {
+        if (check_threads(threads, count, tids, nr_tids) < 0)
+            return -1;
+
+        free(threads);
+        count = nr_tids;
+        threads = tids;
+    }
 
     if (attach_process(pid) < 0)
         return -1;
@@ -139,7 +148,7 @@ int backtrace_ptrace(int pid)
         printf("--------------------  thread %d (%d)  --------------------\n",
                i+1, threads[i]);
 
-        if (i > 0 && attach_thread(threads[i]) < 0) {
+        if (threads[i] != pid && attach_thread(threads[i]) < 0) {
             rc = -1;
             break;
         }
@@ -151,7 +160,7 @@ int backtrace_ptrace(int pid)
 
         _UPT_destroy(upt_info);
 
-        if (i > 0 && detach_thread(threads[i]))
+        if (threads[i] != pid && detach_thread(threads[i]))
             rc = -1;
         if (rc < 0)
             break;

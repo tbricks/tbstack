@@ -33,6 +33,11 @@ int print_proc_maps(int pid);
 int get_threads(int pid, int **tids);
 
 /*
+ * check if user-provided threads belong to the process
+ */
+int check_threads(int *tids, int nr_tids, int *user_tids, int nr_user);
+
+/*
  * attach to the process, wait until it's stopped,
  * send SIGSTOP to make all threads frozen
  */

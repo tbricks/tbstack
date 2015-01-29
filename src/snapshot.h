@@ -28,7 +28,7 @@ struct snapshot
 /*
  * fill up snapshot structure for a process
  */
-struct snapshot *get_snapshot(int pid);
+struct snapshot *get_snapshot(int pid, int *tids, int nr_tids);
 
 /*
  * free resources

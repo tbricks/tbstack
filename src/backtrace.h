@@ -11,12 +11,12 @@
 /*
  * get process' stack trace
  */
-int backtrace_snapshot(int pid);
+int backtrace_snapshot(int pid, int *tids, int nr_tids);
 
 /*
  * get process' stack trace using libunwind-ptrace
  */
-int backtrace_ptrace(int pid);
+int backtrace_ptrace(int pid, int *tids, int nr_tids);
 
 #endif
 

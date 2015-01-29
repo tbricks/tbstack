@@ -5,6 +5,7 @@
  * All rights reserved.
  */
 
+#include <assert.h>
 #include <errno.h>
 #include <getopt.h>
 #include <libelf.h>
@@ -28,6 +29,8 @@ extern int sleep_count;
 extern size_t total_length;
 
 static int pid = 0;
+static int nr_tids = 0;
+static int *tid_list = NULL;
 size_t stack_size = 0;
 int opt_proc_mem = 0;
 int opt_ptrace = 0;
@@ -39,7 +42,8 @@ int opt_ignore_deleted = 0;
 static int usage(const char *name)
 {
     fprintf(stderr,
-"usage:    %s <pid>\n\n"
+"usage:    %s <pid>\n"
+"          %s <pid>/<tid1>,...,<tidn>\n\n"
 "options:  --help               show this\n"
 "          --ignore-deleted     try to open shared objects marked as deleted\n"
 "          --proc-mem           prefer reading /proc/pid/mem (default on systems\n"
@@ -54,8 +58,75 @@ static int usage(const char *name)
 "          --stop-timeout       timeout for waiting the process to freeze, in\n"
 "                               milliseconds. default value is %d\n"
 "          --verbose            verbose error messages\n",
-        name, stop_timeout/1000);
+        name, name, stop_timeout/1000);
     return 2;
+}
+
+static void parse_pid_arg(const char *prog, char *arg)
+{
+    char *tstr, *pos;
+    int nr_commas = 0;
+
+    tstr = strchr(arg, '/');
+    if (tstr != NULL) {
+        *tstr++ = '\0';
+        if (*tstr == '\0') {
+            fprintf(stderr, "empty thread list\n");
+            exit(usage(prog));
+        }
+    }
+
+    pid = atoi(arg);
+    if (pid <= 0) {
+        fprintf(stderr, "invalid pid %s\n", arg);
+        exit(usage(prog));
+    }
+
+    if (tstr != NULL) {
+        char c, prev = '\0';
+        int i = 0, j;
+
+        pos = tstr;
+        if (*pos == ',')
+            goto parse_pid_arg_invalid_list;
+        while (c = *pos++) {
+            if (c == ',') {
+                if (prev == ',' || prev == '\0')
+                    goto parse_pid_arg_invalid_list;
+                ++nr_commas;
+            } else if (!isdigit(c)) {
+                goto parse_pid_arg_invalid_list;
+            }
+            prev = c;
+        }
+        if (prev == ',')
+            goto parse_pid_arg_invalid_list;
+
+        nr_tids = nr_commas + 1;
+        tid_list = malloc(sizeof(int) * nr_tids);
+
+        tstr = strtok(tstr, ",");
+        do {
+            assert(i < nr_tids);
+            tid_list[i++] = atoi(tstr);
+        } while ((tstr = strtok(NULL, ",")) != NULL);
+
+
+        for (i = 0; i < nr_tids; ++i) {
+            for (j = i + 1; j < nr_tids; ++j) {
+                if (tid_list[i] == tid_list[j]) {
+                    fprintf(stderr, "duplicate thread %d\n", tid_list[i]);
+                    exit(usage(prog));
+                }
+            }
+        }
+    }
+
+    return;
+
+parse_pid_arg_invalid_list:
+    fprintf(stderr, "invalid thread list string '%s'\n", tstr);
+    exit(usage(prog));
 }
 
 static void parse_options(int argc, char **argv)
@@ -148,11 +219,7 @@ static void parse_options(int argc, char **argv)
     if (optind == argc)
         exit(usage(argv[0]));
 
-    pid = atoi(argv[optind]);
-    if (pid <= 0) {
-        fprintf(stderr, "invalid pid %s\n", argv[optind]);
-        exit(usage(argv[0]));
-    }
+    parse_pid_arg(argv[0], argv[optind]);
 
     if (++optind < argc) {
         fprintf(stderr, "unknown command line argument %s\n", argv[optind]);
@@ -245,8 +312,8 @@ int main(int argc, char **argv)
         setup_stack_size();
 
     rc = !opt_ptrace ?
-        backtrace_snapshot(pid) :
-        backtrace_ptrace(pid);
+        backtrace_snapshot(pid, tid_list, nr_tids) :
+        backtrace_ptrace(pid, tid_list, nr_tids);
 
     summary();
 

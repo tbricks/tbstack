@@ -227,6 +227,25 @@ int get_threads(int pid, int **tids)
     return n;
 }
 
+int check_threads(int *tids, int nr_tids, int *user_tids, int nr_user)
+{
+    int i, j;
+    for (i = 0; i < nr_user; ++i) {
+        int found = 0;
+        for (j = 0; j < nr_tids; ++j) {
+            if (tids[j] == user_tids[i]) {
+                found = 1;
+                break;
+            }
+        }
+        if (!found) {
+            fprintf(stderr, "unexpected thread %d\n", user_tids[i]);
+            return -1;
+        }
+    }
+    return 0;
+}
+
 int attach_process(int pid)
 {
     int status = 0;

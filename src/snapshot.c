@@ -62,7 +62,7 @@ static int get_kernel_version(int *major, int *minor)
 /*
  * save process' memory maps, stack contents, thread identifiers and registers
  */
-struct snapshot *get_snapshot(int pid)
+struct snapshot *get_snapshot(int pid, int *tids, int nr_tids)
 {
     struct snapshot *res;
     int i, attached_tid, n_frames;
@@ -92,6 +92,18 @@ struct snapshot *get_snapshot(int pid)
     res->num_threads = get_threads(pid, &res->tids);
     if (res->num_threads < 0 || res->tids == NULL)
         goto get_snapshot_fail;
+
+    /*
+     * user-provided list of threads
+     */
+    if (tids != NULL) {
+        if (check_threads(res->tids, res->num_threads, tids, nr_tids) < 0)
+            goto get_snapshot_fail;
+
+        free(res->tids);
+        res->num_threads = nr_tids;
+        res->tids = tids;
+    }
 
     res->cur_thr = 0;
 
@@ -125,7 +137,7 @@ struct snapshot *get_snapshot(int pid)
          * for other ones
          */
         attached_tid = res->tids[i];
-        if (i > 0 && attach_thread(res->tids[i]) < 0)
+        if (res->tids[i] != pid && attach_thread(res->tids[i]) < 0)
             goto get_snapshot_fail_attached;
 
         /*
@@ -153,7 +165,7 @@ struct snapshot *get_snapshot(int pid)
         /*
          * detach from thread. it will still be frozen due to SIGSTOP
          */
-        if (i > 0 && detach_thread(res->tids[i]) < 0)
+        if (res->tids[i] != pid && detach_thread(res->tids[i]) < 0)
             goto get_snapshot_fail_attached;
     }
 
