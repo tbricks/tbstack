@@ -47,6 +47,8 @@ size_t total_length = 0;
 extern struct timeval freeze_time;
 extern struct timeval unfreeze_time;
 
+extern int opt_no_waitpid_timeout;
+
 int proc_stopped(int pid)
 {
     FILE *f;
@@ -259,11 +261,34 @@ int attach_process(int pid)
         return -1;
     }
     if (!proc_stopped(pid)) {
+        struct itimerval tm;
+
+        if (!opt_no_waitpid_timeout) {
+            /* setup alarm to avoid long waiting on waitpid */
+            tm.it_interval.tv_sec = 0;
+            tm.it_interval.tv_usec = 0;
+            tm.it_value.tv_sec = 1;
+            tm.it_value.tv_usec = stop_timeout % 1000000;
+            setitimer(ITIMER_REAL, &tm, NULL);
+        }
+
         if (waitpid(pid, &status, WUNTRACED) < 0) {
+            if (errno == EINTR) {
+                fprintf(stderr, "timeout on waitpid\n");
+                detach_process(pid);
+                return -1;
+            }
             fprintf(stderr, "waitpid %d: %s\n", pid, strerror(errno));
             detach_process(pid);
             return -1;
         }
+
+        if (!opt_no_waitpid_timeout) {
+            tm.it_value.tv_sec = 0;
+            tm.it_value.tv_usec = 0;
+            setitimer(ITIMER_REAL, &tm, NULL);
+        }
+
         if (!WIFSTOPPED(status) || WSTOPSIG(status) != SIGSTOP)
             fprintf(stderr, "warning: waitpid(%d) WIFSTOPPED=%d WSTOPSIG=%d\n",
                     pid, WIFSTOPPED(status), WSTOPSIG(status));

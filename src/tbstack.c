@@ -38,6 +38,7 @@ int opt_show_rsp = 0;
 int opt_verbose = 0;
 int stop_timeout = 1000000;
 int opt_ignore_deleted = 0;
+int opt_no_waitpid_timeout = 0;
 
 static int usage(const char *name)
 {
@@ -46,6 +47,7 @@ static int usage(const char *name)
 "          %s <pid>/<tid1>,...,<tidn>\n\n"
 "options:  --help               show this\n"
 "          --ignore-deleted     try to open shared objects marked as deleted\n"
+"          --no-waitpid-timeout don't set alarm to interrupt waitpid\n"
 "          --proc-mem           prefer reading /proc/pid/mem (default on systems\n"
 "                               with kernel older than 3.2. on modern kernels\n"
 "                               default flavor is process_vm_readv)\n"
@@ -144,6 +146,7 @@ static void parse_options(int argc, char **argv)
             { "help", 0, NULL, 0},
             { "stop-timeout", 1, NULL, 0},
             { "ignore-deleted", 0, NULL, 0},
+            { "no-waitpid-timeout", 0, NULL, 0 },
             { 0, 0, 0, 0 }
         };
 
@@ -203,6 +206,10 @@ static void parse_options(int argc, char **argv)
                 opt_ignore_deleted = 1;
                 break;
 
+            case 8:
+                opt_no_waitpid_timeout = 1;
+                break;
+
             default:
                 break;
             }
@@ -236,6 +243,10 @@ static void check_libelf_version()
     }
 }
 
+static void alarm_handler(int signo)
+{
+};
+
 static void setup_signals()
 {
     sigset_t mask;
@@ -253,10 +264,18 @@ static void setup_signals()
             sigaction(SIGTERM, &act, NULL) < 0 ||
             sigaction(SIGTSTP, &act, NULL) < 0 ||
             sigaction(SIGABRT, &act, NULL) < 0 ||
-            sigaction(SIGSEGV, &act, NULL) < 0) {
-        perror("sigaction");
-        exit(1);
-    }
+            sigaction(SIGSEGV, &act, NULL) < 0)
+        goto sigaction_fail;
+
+    act.sa_handler = alarm_handler;
+    if (sigaction(SIGALRM, &act, NULL) < 0)
+        goto sigaction_fail;
+
+    return;
+
+sigaction_fail:
+    perror("sigaction");
+    exit(1);
 }
 
 static void setup_stack_size()
