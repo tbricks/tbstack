@@ -62,7 +62,7 @@ static int get_kernel_version(int *major, int *minor)
 /*
  * save process' memory maps, stack contents, thread identifiers and registers
  */
-struct snapshot *get_snapshot(int pid, int *tids, int nr_tids)
+struct snapshot *get_snapshot(int pid, int *tids, int *index, int nr_tids)
 {
     struct snapshot *res;
     int i, attached_tid, n_frames;
@@ -97,7 +97,7 @@ struct snapshot *get_snapshot(int pid, int *tids, int nr_tids)
      * user-provided list of threads
      */
     if (tids != NULL) {
-        if (check_threads(res->tids, res->num_threads, tids, nr_tids) < 0)
+        if (adjust_threads(res->tids, res->num_threads, tids, index, nr_tids) < 0)
             goto get_snapshot_fail;
 
         free(res->tids);

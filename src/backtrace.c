@@ -99,17 +99,17 @@ static int backtrace_thread(unw_accessors_t *accessors, void *arg)
     return rc;
 }
 
-int backtrace_snapshot(int pid, int *tids, int nr_tids)
+int backtrace_snapshot(int pid, int *tids, int *index, int nr_tids)
 {
     int i, rc = 0;
     struct snapshot *snap;
     
-    if ((snap = get_snapshot(pid, tids, nr_tids)) == NULL)
+    if ((snap = get_snapshot(pid, tids, index, nr_tids)) == NULL)
         return -1;
 
     for (i = 0; i < snap->num_threads; ++i) {
         printf("--------------------  thread %d (%d)  --------------------\n",
-               i+1, snap->tids[i]);
+               (index != NULL ? index[i] : i+1), snap->tids[i]);
 
         snap->cur_thr = i;
         if (backtrace_thread(&snapshot_addr_space_accessors, snap) < 0)
@@ -120,7 +120,7 @@ int backtrace_snapshot(int pid, int *tids, int nr_tids)
     return rc;
 }
 
-int backtrace_ptrace(int pid, int *tids, int nr_tids)
+int backtrace_ptrace(int pid, int *tids, int *index, int nr_tids)
 {
 #if !defined (NO_LIBUNWIND_PTRACE)
     int i, count, rc = 0;
@@ -131,7 +131,7 @@ int backtrace_ptrace(int pid, int *tids, int nr_tids)
         return -1;
 
     if (tids != NULL) {
-        if (check_threads(threads, count, tids, nr_tids) < 0)
+        if (adjust_threads(threads, count, tids, index, nr_tids) < 0)
             return -1;
 
         free(threads);
@@ -146,7 +146,7 @@ int backtrace_ptrace(int pid, int *tids, int nr_tids)
         void *upt_info;
 
         printf("--------------------  thread %d (%d)  --------------------\n",
-               i+1, threads[i]);
+               (index != NULL ? index[i] : i+1), threads[i]);
 
         if (threads[i] != pid && attach_thread(threads[i]) < 0) {
             rc = -1;

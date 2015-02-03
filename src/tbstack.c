@@ -31,6 +31,7 @@ extern size_t total_length;
 static int pid = 0;
 static int nr_tids = 0;
 static int *tid_list = NULL;
+static int *tid_index = NULL;
 size_t stack_size = 0;
 int opt_proc_mem = 0;
 int opt_ptrace = 0;
@@ -106,6 +107,7 @@ static void parse_pid_arg(const char *prog, char *arg)
 
         nr_tids = nr_commas + 1;
         tid_list = malloc(sizeof(int) * nr_tids);
+        tid_index = malloc(sizeof(int) * nr_tids);
 
         tstr = strtok(tstr, ",");
         do {
@@ -331,8 +333,8 @@ int main(int argc, char **argv)
         setup_stack_size();
 
     rc = !opt_ptrace ?
-        backtrace_snapshot(pid, tid_list, nr_tids) :
-        backtrace_ptrace(pid, tid_list, nr_tids);
+        backtrace_snapshot(pid, tid_list, tid_index, nr_tids) :
+        backtrace_ptrace(pid, tid_list, tid_index, nr_tids);
 
     summary();
 

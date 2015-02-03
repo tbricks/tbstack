@@ -229,9 +229,10 @@ int get_threads(int pid, int **tids)
     return n;
 }
 
-int check_threads(int *tids, int nr_tids, int *user_tids, int nr_user)
+int adjust_threads(int *tids, int nr_tids, int *user_tids,
+        int *index, int nr_user)
 {
-    int i, j;
+    int i, j, n = 0;
     for (i = 0; i < nr_user; ++i) {
         int found = 0;
         for (j = 0; j < nr_tids; ++j) {
@@ -241,8 +242,19 @@ int check_threads(int *tids, int nr_tids, int *user_tids, int nr_user)
             }
         }
         if (!found) {
-            fprintf(stderr, "unexpected thread %d\n", user_tids[i]);
-            return -1;
+            if (n || (user_tids[i] > nr_tids) || (user_tids[i] <= 0)) {
+                fprintf(stderr, "unexpected thread %d\n", user_tids[i]);
+                return -1;
+            }
+        } else {
+            ++n;
+            index[i] = j + 1;
+        }
+    }
+    if (!n) {
+        for (i = 0; i < nr_user; ++i) {
+            index[i] = user_tids[i];
+            user_tids[i] = tids[user_tids[i]-1];
         }
     }
     return 0;
