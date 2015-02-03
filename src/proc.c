@@ -47,7 +47,7 @@ size_t total_length = 0;
 extern struct timeval freeze_time;
 extern struct timeval unfreeze_time;
 
-extern int opt_no_waitpid_timeout;
+extern int opt_use_waitpid_timeout;
 
 int proc_stopped(int pid)
 {
@@ -263,7 +263,7 @@ int attach_process(int pid)
     if (!proc_stopped(pid)) {
         struct itimerval tm;
 
-        if (!opt_no_waitpid_timeout) {
+        if (opt_use_waitpid_timeout) {
             /* setup alarm to avoid long waiting on waitpid */
             tm.it_interval.tv_sec = 0;
             tm.it_interval.tv_usec = 0;
@@ -283,7 +283,7 @@ int attach_process(int pid)
             return -1;
         }
 
-        if (!opt_no_waitpid_timeout) {
+        if (opt_use_waitpid_timeout) {
             tm.it_value.tv_sec = 0;
             tm.it_value.tv_usec = 0;
             setitimer(ITIMER_REAL, &tm, NULL);

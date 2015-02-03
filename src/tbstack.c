@@ -38,28 +38,28 @@ int opt_show_rsp = 0;
 int opt_verbose = 0;
 int stop_timeout = 1000000;
 int opt_ignore_deleted = 0;
-int opt_no_waitpid_timeout = 0;
+int opt_use_waitpid_timeout = 0;
 
 static int usage(const char *name)
 {
     fprintf(stderr,
 "usage:    %s <pid>\n"
 "          %s <pid>/<tid1>,...,<tidn>\n\n"
-"options:  --help               show this\n"
-"          --ignore-deleted     try to open shared objects marked as deleted\n"
-"          --no-waitpid-timeout don't set alarm to interrupt waitpid\n"
-"          --proc-mem           prefer reading /proc/pid/mem (default on systems\n"
-"                               with kernel older than 3.2. on modern kernels\n"
-"                               default flavor is process_vm_readv)\n"
+"options:  --help                show this\n"
+"          --ignore-deleted      try to open shared objects marked as deleted\n"
+"          --use-waitpid-timeout set alarm to interrupt waitpid\n"
+"          --proc-mem            prefer reading /proc/pid/mem (default on systems\n"
+"                                with kernel older than 3.2. on modern kernels\n"
+"                                default flavor is process_vm_readv)\n"
 #if !defined (NO_LIBUNWIND_PTRACE)
-"          --ptrace             use libunwind-ptrace interface (slower)\n"
+"          --ptrace              use libunwind-ptrace interface (slower)\n"
 #endif
-"          --show-rsp           show %%rsp in second column\n"
-"          --stack-size <size>  maximum stack size to copy (default is current\n"
-"                               RLIMIT_STACK)\n"
-"          --stop-timeout       timeout for waiting the process to freeze, in\n"
-"                               milliseconds. default value is %d\n"
-"          --verbose            verbose error messages\n",
+"          --show-rsp            show %%rsp in second column\n"
+"          --stack-size <size>   maximum stack size to copy (default is current\n"
+"                                RLIMIT_STACK)\n"
+"          --stop-timeout        timeout for waiting the process to freeze, in\n"
+"                                milliseconds. default value is %d\n"
+"          --verbose             verbose error messages\n",
         name, name, stop_timeout/1000);
     return 2;
 }
@@ -146,7 +146,7 @@ static void parse_options(int argc, char **argv)
             { "help", 0, NULL, 0},
             { "stop-timeout", 1, NULL, 0},
             { "ignore-deleted", 0, NULL, 0},
-            { "no-waitpid-timeout", 0, NULL, 0 },
+            { "use-waitpid-timeout", 0, NULL, 0 },
             { 0, 0, 0, 0 }
         };
 
@@ -207,7 +207,7 @@ static void parse_options(int argc, char **argv)
                 break;
 
             case 8:
-                opt_no_waitpid_timeout = 1;
+                opt_use_waitpid_timeout = 1;
                 break;
 
             default:
