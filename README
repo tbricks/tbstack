@@ -40,19 +40,21 @@ Other options are available:
 USAGE
 
 usage:    tbstack <pid>
+          tbstack <pid>/<tid1>,...,<tidn>
 
-options:  --help               show help
-          --ignore-deleted     try to open shared objects marked as deleted
-          --proc-mem           prefer reading /proc/pid/mem (default on systems
-                               with kernel older than 3.2. on modern kernels
-                               default flavor is process_vm_readv)
-          --ptrace             use libunwind-ptrace interface (slower)
-          --show-rsp           show %rsp in second column
-          --stack-size <size>  maximum stack size to copy (default is current
-                               RLIMIT_STACK)
-          --stop-timeout       timeout for waiting the process to freeze in
-                               milliseconds. default value is 1000
-          --verbose            verbose error messages.
+options:  --help                show this
+          --ignore-deleted      try to open shared objects marked as deleted
+          --use-waitpid-timeout set alarm to interrupt waitpid
+          --proc-mem            prefer reading /proc/pid/mem (default on systems
+                                with kernel older than 3.2. on modern kernels
+                                default flavor is process_vm_readv)
+          --ptrace              use libunwind-ptrace interface (slower)
+          --show-rsp            show %rsp in second column
+          --stack-size <size>   maximum stack size to copy (default is current
+                                RLIMIT_STACK)
+          --stop-timeout        timeout for waiting the process to freeze, in
+                                milliseconds. default value is 1000
+          --verbose             verbose error messages
 
 --------------------------------------------------------------------------------
 HOW IT WORKS
