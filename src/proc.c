@@ -12,6 +12,7 @@
 #include <dirent.h>
 #include <elf.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <linux/limits.h>
 #include <signal.h>
@@ -19,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ptrace.h>
+#include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -445,27 +447,21 @@ int copy_memory_proc_mem(int pid, struct mem_data_chunk **frames, int n_frames)
 {
     int i = 0;
     char fname[32];
-    FILE *f;
+    int fd;
     int rc = -1;
 
     sprintf(fname, "/proc/%d/mem", pid);
-    if ((f = fopen(fname, "r")) == NULL) {
+    if ((fd = open(fname, O_RDONLY)) == -1) {
         fprintf(stderr, "cannot open %s\n", fname);
         perror(fname);
         return -1;
     }
 
     for (i = 0; i < n_frames; ++i) {
-        if (fseek(f, (long)frames[i]->start, SEEK_SET) < 0) {
-            fprintf(stderr, "seek at %s:0x%lx (#%d) failed\n",
-                    fname,
-                    (long)frames[i]->start,
-                    i);
-            perror(fname);
-            goto proc_mem_end;
-        }
-        if (fread(frames[i]->data, frames[i]->length, 1, f) != 1) {
-            fprintf(stderr, "read at %s:0x%lx (#%d) failed\n",
+        ssize_t rd = pread(fd, frames[i]->data, frames[i]->length, (long)frames[i]->start);
+
+        if (rd != (ssize_t)frames[i]->length) {
+            fprintf(stderr, "pread at %s:0x%lx (#%d) failed\n",
                     fname,
                     (long)frames[i]->start,
                     i);
@@ -478,7 +474,7 @@ int copy_memory_proc_mem(int pid, struct mem_data_chunk **frames, int n_frames)
     rc = 0;
 
 proc_mem_end:
-    fclose(f);
+    close(fd);
     return rc;
 }
 
