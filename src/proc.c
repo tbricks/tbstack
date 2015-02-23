@@ -458,16 +458,27 @@ int copy_memory_proc_mem(int pid, struct mem_data_chunk **frames, int n_frames)
     }
 
     for (i = 0; i < n_frames; ++i) {
-        ssize_t rd = pread(fd, frames[i]->data, frames[i]->length, (long)frames[i]->start);
+        off_t from = (off_t)frames[i]->start;
+        char *to = frames[i]->data;
+        size_t count = frames[i]->length;
 
-        if (rd != (ssize_t)frames[i]->length) {
-            fprintf(stderr, "pread at %s:0x%lx (#%d) failed\n",
-                    fname,
-                    (long)frames[i]->start,
-                    i);
-            perror(fname);
-            goto proc_mem_end;
+        while (count > 0) {
+            ssize_t rd = pread(fd, to, count, from);
+
+            if (rd == -1) {
+                fprintf(stderr, "pread() at %s:0x%lx (#%d) failed\n",
+                        fname,
+                        from,
+                        i);
+                perror(fname);
+                goto proc_mem_end;
+            }
+
+            from += rd;
+            to += rd;
+            count -= rd;
         }
+
         total_length += frames[i]->length;
     }
 
