@@ -28,7 +28,7 @@ src/%.o: %.c $(DEPS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 tbstack: $(OBJECTS)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) 
 
 all: tbstack
 
