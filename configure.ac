@@ -28,6 +28,38 @@ AS_IF(test "$use_ptrace" == yes,
 	 AC_DEFINE([NO_LIBUNWIND_PTRACE], [1], [Don't use libunwind's ptrace support])]
 )
 
+echo -n "Checking for dwarf unwind support... "
+SAVED_LDFLAGS="$LDFLAGS"
+LDFLAGS=$LIBUNWIND_LIBS
+AC_LINK_IFELSE([
+	AC_LANG_SOURCE([[
+#include <dwarf.h>
+#include <libunwind.h>
+
+#define dwarf_find_debug_frame UNW_OBJ(dwarf_find_debug_frame)
+
+extern int
+UNW_OBJ(dwarf_find_debug_frame)(int found, unw_dyn_info_t *di_debug,
+                                unw_word_t ip,
+                                unw_word_t segbase,
+                                const char *obj_name, unw_word_t start,
+                                unw_word_t end);
+int main(void)
+{
+	dwarf_find_debug_frame(0, 0, 0, 0, 0, 0, 0);
+	return 0;
+}
+]])], [dwarf_debug_frame=yes])
+LDFLAGS="$SAVED_LDFLAGS"
+
+if test "$dwarf_debug_frame" != yes; then
+	echo "no"
+else
+	echo "yes"
+	AC_DEFINE([HAVE_DWARF],[1],[DWARF debug_frame support in libunwind])
+fi
+
+
 AC_CONFIG_FILES([
 	Makefile
 ])

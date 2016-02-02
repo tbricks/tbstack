@@ -28,6 +28,19 @@ extern int search_unwind_table(unw_addr_space_t as, unw_word_t ip,
         unw_dyn_info_t *di, unw_proc_info_t *pip,
         int need_unwind_info, void *arg);
 
+
+#ifdef HAVE_DWARF
+#define dwarf_find_debug_frame UNW_OBJ(dwarf_find_debug_frame)
+
+extern int
+UNW_OBJ(dwarf_find_debug_frame)(int found, unw_dyn_info_t *di_debug,
+                                unw_word_t ip,
+                                unw_word_t segbase,
+                                const char *obj_name, unw_word_t start,
+                                unw_word_t end);
+#endif
+
+
 /*
  * get dwarf encoded value
  */
@@ -420,6 +433,30 @@ static int get_elf_image_info(struct mem_region *region,
     return 0;
 }
 
+#ifdef HAVE_DWARF
+static int elf_is_exec(int fd, char *image, uint64_t size)
+{
+    Elf *elf;
+    GElf_Ehdr ehdr;
+    int ret = 0;
+
+    if ((elf = elf_start(fd, image, size)) == NULL)
+        return 0;
+
+    if (gelf_getehdr(elf, &ehdr) == NULL) {
+        fprintf(stderr, "elf_getehdr: %s\n", elf_errmsg(elf_errno()));
+        goto elf_is_exec_end;
+    }
+
+    ret = ehdr.e_type == ET_EXEC;
+
+elf_is_exec_end:
+    elf_end(elf);
+
+    return ret;
+}
+#endif
+
 /*
  * find unwind info for function
  */
@@ -447,9 +484,10 @@ static int find_proc_info(unw_addr_space_t as, unw_word_t ip,
             get_elf_image_info(region, &elf_image, &elf_length, ip) < 0)
         return -UNW_EINVAL;
 
+    memset(&di, 0, sizeof(di));
+
     if (!find_eh_frame_hdr(region->fd, elf_image, elf_length,
                 &table_data, &segbase, &fde_count)) {
-        memset(&di, 0, sizeof(di));
 
         di.format = UNW_INFO_FORMAT_REMOTE_TABLE;
         di.start_ip = (unw_word_t)region->start;
@@ -461,6 +499,16 @@ static int find_proc_info(unw_addr_space_t as, unw_word_t ip,
 
         return search_unwind_table(as, ip, &di, pip, need_unwind_info, arg);
     }
+
+#ifdef HAVE_DWARF
+    unw_word_t base = 0;
+    if (!elf_is_exec(region->fd, elf_image, elf_length))
+        base = (uintptr_t)region->start;
+
+    if (dwarf_find_debug_frame(0, &di, ip, base, region->path,
+                region->start, region->start + region->length))
+            return search_unwind_table(as, ip, &di, pip, need_unwind_info, arg);
+#endif
 
     return -UNW_EINVAL;
 }
