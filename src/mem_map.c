@@ -246,6 +246,13 @@ static void mem_region_create_data_chunk_index(struct mem_region *region)
     }
 }
 
+static char *addr_increment_clamped(char *start, char *end, size_t increment)
+{
+    assert(end >= start);
+    return ((size_t)(end - start) <= increment) ?
+            end : start + increment;
+}
+
 static int mem_region_build_label_cover(struct mem_region *region,
         size_t generic_chunk_size, struct mem_data_chunk **chunks, size_t align)
 {
@@ -260,20 +267,14 @@ static int mem_region_build_label_cover(struct mem_region *region,
 
         region_end = (char *)region->start + region->length;
         cur_start = region->labels[i];
-        cur_end = cur_start + generic_chunk_size;
-        if (cur_end > region_end)
-            cur_end = region_end;
+        cur_end = addr_increment_clamped(cur_start, region_end, generic_chunk_size);
 
         for (++i; i < region->num_labels; ++i) {
             if ((size_t)region->labels[i] <= (size_t)cur_end) {
-                size_t cur_length;
-                cur_end = (char *)region->labels[i] + generic_chunk_size;
-
-                cur_length = (size_t)cur_end - (size_t)region->start;
-                if (cur_end > region_end) {
-                    cur_end = region_end;
+                cur_end = addr_increment_clamped((char *)region->labels[i],
+                                                 region_end, generic_chunk_size);
+                if (cur_end == region_end)
                     break;
-                }
             }
         }
 
