@@ -455,6 +455,49 @@ elf_is_exec_end:
 
     return ret;
 }
+
+static int elf_get_link_base(int fd, char *image, uint64_t size,
+        uint64_t *link_base)
+{
+    Elf *elf;
+    GElf_Ehdr ehdr;
+    GElf_Phdr phdr;
+    int idx=0;
+    uint64_t offset = UINT64_MAX;
+
+    if ((elf = elf_start(fd, image, size)) == NULL)
+        return -1;
+
+    if (gelf_getehdr(elf, &ehdr) == NULL) {
+        fprintf(stderr, "elf_getehdr: %s\n", elf_errmsg(elf_errno()));
+        goto elf_section_offset_end;
+    }
+
+    /* Get the vaddr of the segment with 0 offset.  This is the link base of
+     * the shared object. */
+    while (gelf_getphdr(elf, idx, &phdr) && phdr.p_type != PT_NULL) {
+	if (phdr.p_type != PT_LOAD)
+	    goto next;
+
+	if (phdr.p_offset)
+	    goto next;
+
+	offset = phdr.p_vaddr;
+	break;
+
+next:
+	idx++;
+    }
+
+    *link_base = offset;
+    elf_end(elf);
+    return 0;
+
+elf_section_offset_end:
+    elf_end(elf);
+    return -1;
+}
+
 #endif
 
 /*
@@ -502,8 +545,12 @@ static int find_proc_info(unw_addr_space_t as, unw_word_t ip,
 
 #ifdef HAVE_DWARF
     unw_word_t base = 0;
-    if (!elf_is_exec(region->fd, elf_image, elf_length))
-        base = (uintptr_t)region->start;
+    if (!elf_is_exec(region->fd, elf_image, elf_length)) {
+	uint64_t link_base;
+	if (elf_get_link_base(region->fd, elf_image, elf_length, &link_base))
+	    return -UNW_EINVAL;
+        base = (uintptr_t)region->start - link_base;
+    }
 
     if (dwarf_find_debug_frame(0, &di, ip, base, region->path,
                 region->start, region->start + region->length))
