@@ -511,7 +511,17 @@ static int access_reg(unw_addr_space_t as, unw_regnum_t reg,
     }
 
     switch (reg) {
-#if defined(UNW_TARGET_ARM)
+#if defined(UNW_TARGET_AARCH64)
+    case UNW_AARCH64_X0 ... UNW_AARCH64_PC:
+        /*
+         * Currently this enum directly maps to the index so this is a no-op.
+         * Assert just in case.
+         */
+        reg -= UNW_AARCH64_X0;
+        assert(reg>= 0 && reg <= 32);
+        *val = snap->regs[snap->cur_thr].regs[reg];
+        break;
+#elif defined(UNW_TARGET_ARM)
     case UNW_ARM_R0 ... UNW_ARM_R15:
         /*
          * Currently this enum directly maps to the index so this is a no-op.
