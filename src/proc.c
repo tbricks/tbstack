@@ -35,8 +35,6 @@
 #define SLEEP_WAIT 500
 
 int attached_pid = 0;
-int attached_tid = 0;
-int stopped_pid = 0;
 
 /* timeout on waiting for process to stop (us) */
 extern int stop_timeout;
@@ -307,7 +305,6 @@ int attach_process(int pid)
             fprintf(stderr, "warning: waitpid(%d) WIFSTOPPED=%d WSTOPSIG=%d\n",
                     pid, WIFSTOPPED(status), WSTOPSIG(status));
     }
-    stopped_pid = pid;
     if (kill(pid, SIGSTOP) < 0) {
         perror("send SIGSTOP");
         return -1;
@@ -317,7 +314,6 @@ int attach_process(int pid)
 
 int attach_thread(int tid)
 {
-    attached_tid = tid;
     if (ptrace(PTRACE_ATTACH, tid, NULL, NULL) < 0) {
         perror("PTRACE_ATTACH");
         return -1;
@@ -347,7 +343,6 @@ int detach_process(int pid)
 int detach_thread(int tid)
 {
     long rc = ptrace(PTRACE_DETACH, tid, NULL, NULL);
-    attached_tid = 0;
     if (rc < 0) {
         perror("PTRACE_DETACH");
         return -1;
@@ -516,15 +511,19 @@ get_vdso_fail:
 
 void quit_handler(int signum)
 {
-    if (attached_tid)
-        ptrace(PTRACE_DETACH, attached_tid, NULL, NULL);
+    /*
+     * We can't call PTRACE_DETACH here because we are in a signal handler.
+     * Additionally ptrace will automatically detach when this process exits at
+     * the end of this function. We do however always need to send the SIGCONT
+     * if we have ptrace attached because when the ptrace automatically
+     * detaches it will leave the process in a stopped state even if we had not
+     * yet sent SIGSTOP to it.
+     */
     if (attached_pid)
-        ptrace(PTRACE_DETACH, attached_pid, NULL, NULL);
-    if (stopped_pid)
-        kill(stopped_pid, SIGCONT);
+        kill(attached_pid, SIGCONT);
     if (signum == SIGSEGV) {
         static volatile int *n = NULL;
         *n = 1969;
     }
-    exit(1);
+    _exit(1);
 }
