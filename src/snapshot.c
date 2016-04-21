@@ -12,10 +12,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/ptrace.h>
+#include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/user.h>
 #include <sys/utsname.h>
 #include <unistd.h>
+#include <elf.h>
 
 extern int opt_proc_mem;
 extern int opt_process_vm_readv;
@@ -132,6 +134,8 @@ struct snapshot *get_snapshot(int pid, int *tids, int *index, int nr_tids)
         goto get_snapshot_fail;
 
     for (i = 0; i < res->num_threads; ++i) {
+        struct iovec iov;
+
         /*
          * we have already attached to main thread. call attach_thread()
          * for other ones
@@ -143,9 +147,11 @@ struct snapshot *get_snapshot(int pid, int *tids, int *index, int nr_tids)
         /*
          * save thread's registers
          */
-        rc = ptrace(PTRACE_GETREGS, res->tids[i], NULL, &res->regs[i]);
+        iov.iov_len = sizeof(res->regs[0]);
+        iov.iov_base = &res->regs[i];
+        rc = ptrace(PTRACE_GETREGSET, res->tids[i], NT_PRSTATUS, &iov);
         if (rc < 0) {
-            perror("PTRACE_GETREGS");
+            perror("PTRACE_GETREGSET");
             goto get_snapshot_fail_attached;
         }
 
@@ -157,8 +163,8 @@ struct snapshot *get_snapshot(int pid, int *tids, int *index, int nr_tids)
         rc = mem_map_add_label(res->map, (void *)label, res->num_threads);
 
         if (rc < 0) {
-            fprintf(stderr, "failed to add label 0x%lx [rsp 0x%lx thread %d]\n",
-                    label, SP_REG(&res->regs[i]), res->tids[i]);
+            fprintf(stderr, "failed to add label 0x%lx [rsp 0x%llx thread %d]\n",
+                    label, (long long unsigned int)SP_REG(&res->regs[i]), res->tids[i]);
             goto get_snapshot_fail_attached;
         }
 
