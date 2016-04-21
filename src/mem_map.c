@@ -40,11 +40,11 @@ static void mem_data_chunk_init(struct mem_data_chunk *chunk)
 }
 
 static int mem_data_chunk_read_word(struct mem_data_chunk *chunk,
-        void *addr, uint64_t *value)
+        void *addr, uintptr_t *value)
 {
     size_t offset = (size_t)addr - (size_t)chunk->start;
     assert(offset < chunk->length);
-    *value = *(uint64_t*)(chunk->data + offset);
+    *value = *(uintptr_t *)(chunk->data + offset);
     return 0;
 }
 
@@ -430,7 +430,7 @@ struct mem_data_chunk *mem_region_find_data_chunk(
 }
 
 static int mem_region_read_word(struct mem_region *region,
-        void *addr, uint64_t *value)
+        void *addr, uintptr_t *value)
 {
     struct mem_data_chunk *chunk;
 
@@ -703,7 +703,7 @@ static void mem_map_create_data_chunk_indices(struct mem_map *map)
         mem_region_create_data_chunk_index(cur);
 }
 
-int mem_map_read_word(struct mem_map *map, void *addr, uint64_t *value)
+int mem_map_read_word(struct mem_map *map, void *addr, uintptr_t *value)
 {
     struct mem_region *region;
 

@@ -100,7 +100,7 @@ struct mem_region *mem_map_get_file_region(struct mem_map *map, void *addr);
 struct mem_data_chunk *mem_region_find_data_chunk(
         struct mem_region *region, void *addr);
 
-int mem_map_read_word(struct mem_map *map, void *addr, uint64_t *value);
+int mem_map_read_word(struct mem_map *map, void *addr, uintptr_t *value);
 
 void mem_map_destroy(struct mem_map *map);
 
