@@ -403,7 +403,7 @@ proc_name_end:
  * get mmapped ELF image info
  */
 static int get_elf_image_info(struct mem_region *region,
-        char **elf_image, uint64_t *elf_length, uint64_t ip)
+        char **elf_image, uint64_t *elf_length, uintptr_t ip)
 {
     struct mem_data_chunk *chunk;
 
@@ -493,7 +493,7 @@ static int access_mem(unw_addr_space_t as, unw_word_t addr,
         return -UNW_EINVAL;
     }
 
-    return mem_map_read_word(snap->map, (void *)addr, valp);
+    return mem_map_read_word(snap->map, (void *)(uintptr_t)addr, valp);
 }
 
 /*
@@ -619,7 +619,7 @@ static int get_proc_name(unw_addr_space_t as, unw_word_t addr, char *bufp,
             return -UNW_ENOINFO;
 
         name = proc_name(region->fd, elf_image, elf_length,
-                (uint64_t)region->start, region->offset, addr, offp);
+                (uint64_t)(uintptr_t)region->start, region->offset, addr, offp);
     }
 
     if (name == NULL) {
