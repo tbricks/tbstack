@@ -13,7 +13,8 @@
 #include <gelf.h>
 #include <libelf.h>
 #include <libgen.h>
-#include <libunwind-x86_64.h>
+#include <libunwind.h>
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/user.h>
@@ -510,6 +511,45 @@ static int access_reg(unw_addr_space_t as, unw_regnum_t reg,
     }
 
     switch (reg) {
+#if defined(UNW_TARGET_ARM)
+    case UNW_ARM_R0 ... UNW_ARM_R15:
+        /*
+         * Currently this enum directly maps to the index so this is a no-op.
+         * Assert just in case.
+         */
+        reg -= UNW_ARM_R0;
+        assert(reg >= 0 && reg <= 15);
+        *val = snap->regs[snap->cur_thr].uregs[reg];
+        break;
+#elif defined(UNW_TARGET_X86)
+    case UNW_X86_EAX:
+        *val = snap->regs[snap->cur_thr].eax;
+        break;
+    case UNW_X86_EDX:
+        *val = snap->regs[snap->cur_thr].edx;
+        break;
+    case UNW_X86_ECX:
+        *val = snap->regs[snap->cur_thr].ecx;
+        break;
+    case UNW_X86_EBX:
+        *val = snap->regs[snap->cur_thr].ebx;
+        break;
+    case UNW_X86_ESI:
+        *val = snap->regs[snap->cur_thr].esi;
+        break;
+    case UNW_X86_EDI:
+        *val = snap->regs[snap->cur_thr].edi;
+        break;
+    case UNW_X86_EBP:
+        *val = snap->regs[snap->cur_thr].ebp;
+        break;
+    case UNW_X86_ESP:
+        *val = snap->regs[snap->cur_thr].esp;
+        break;
+    case UNW_X86_EIP:
+        *val = snap->regs[snap->cur_thr].eip;
+        break;
+#elif defined(UNW_TARGET_X86_64)
     case UNW_X86_64_RAX:
         *val = snap->regs[snap->cur_thr].rax;
         break;
@@ -561,6 +601,9 @@ static int access_reg(unw_addr_space_t as, unw_regnum_t reg,
     case UNW_X86_64_RIP:
         *val = snap->regs[snap->cur_thr].rip;
         break;
+#else
+#error Need porting to this arch
+#endif
     default:
         return -UNW_EBADREG;
     }

@@ -107,7 +107,7 @@ struct snapshot *get_snapshot(int pid, int *tids, int *index, int nr_tids)
 
     res->cur_thr = 0;
 
-    res->regs = malloc(sizeof(struct user_regs_struct)*res->num_threads);
+    res->regs = malloc(sizeof(res->regs[0])*res->num_threads);
     if (res->regs == NULL) {
         perror("malloc");
         goto get_snapshot_fail;
@@ -153,12 +153,12 @@ struct snapshot *get_snapshot(int pid, int *tids, int *index, int nr_tids)
          * save label on memory region. it will indicate that memory contents
          * upper than this point (%rsp) will needed to unwind stacks
          */
-        label = res->regs[i].rsp & ~page;
+        label = SP_REG(&res->regs[i]) & ~page;
         rc = mem_map_add_label(res->map, (void *)label, res->num_threads);
 
         if (rc < 0) {
             fprintf(stderr, "failed to add label 0x%lx [rsp 0x%lx thread %d]\n",
-                    label, res->regs[i].rsp, res->tids[i]);
+                    label, SP_REG(&res->regs[i]), res->tids[i]);
             goto get_snapshot_fail_attached;
         }
 

@@ -9,7 +9,24 @@
 #define __d235bb20_9af6_11e3_8ab0_50ba7047f67f
 
 struct mem_map;
+
+#if defined(__arm__)
+struct user_regs;
+typedef struct user_regs regs_t;
+#else
 struct user_regs_struct;
+typedef struct user_regs_struct regs_t;
+#endif
+
+#if defined(__arm__)
+#define SP_REG(regs) ((regs)->uregs[13])
+#elif defined(__i386)
+#define SP_REG(regs) ((regs)->esp)
+#elif defined(__x86_64)
+#define SP_REG(regs) ((regs)->rsp)
+#else
+#error Need porting
+#endif
 
 struct snapshot
 {
@@ -22,7 +39,7 @@ struct snapshot
     /* current thread (used when unwinding stack) */
     int cur_thr;
     /* per-thread registers */
-    struct user_regs_struct *regs;
+    regs_t *regs;
 };
 
 /*

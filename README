@@ -14,7 +14,7 @@ The program uses POSIX, Linux API, and libunwind.
 --------------------------------------------------------------------------------
 COMPATIBILITY
 
-This utility is intended for use with Linux on x86_64.
+This utility is intended for use with Linux on ARM, x86, and x86_64.
 
 Libraries: libelf, libunwind. It is recommended to get the latest version of
 libunwind.
