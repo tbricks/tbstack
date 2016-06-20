@@ -601,6 +601,7 @@ static struct mem_region *mem_map_find_region(struct mem_map *map, void *addr)
         fprintf(stderr,
                 "cannot find region of memory containing 0x%lx\nmap:\n",
                 (size_t)addr);
+        region = NULL;
     } else {
         region = *region_ptr;
         map->prev_accessed_region = region;
