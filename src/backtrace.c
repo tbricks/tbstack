@@ -108,8 +108,10 @@ int backtrace_snapshot(int pid, int *tids, int *index, int nr_tids)
         return -1;
 
     for (i = 0; i < snap->num_threads; ++i) {
-        printf("--------------------  thread %d (%d)  --------------------\n",
+        printf("--------------------  thread %d (%d) (",
                (index != NULL ? index[i] : i+1), snap->tids[i]);
+        print_proc_comm(snap->tids[i]);
+        printf(")  --------------------\n");
 
         snap->cur_thr = i;
         if (backtrace_thread(&snapshot_addr_space_accessors, snap) < 0)
@@ -145,8 +147,10 @@ int backtrace_ptrace(int pid, int *tids, int *index, int nr_tids)
     for (i = 0; i < count; ++i) {
         void *upt_info;
 
-        printf("--------------------  thread %d (%d)  --------------------\n",
+        printf("--------------------  thread %d (%d) (",
                (index != NULL ? index[i] : i+1), threads[i]);
+        print_proc_comm(threads[i]);
+        printf(")  --------------------\n");
 
         if (threads[i] != pid && attach_thread(threads[i]) < 0) {
             rc = -1;

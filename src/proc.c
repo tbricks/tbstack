@@ -191,6 +191,30 @@ int print_proc_maps(int pid)
     return system(cmd);
 }
 
+int print_proc_comm(int pid)
+{
+    FILE *f;
+    char buf[32] = "";
+    int i;
+    int rc = -1;
+
+    snprintf(buf, sizeof(buf), "/proc/%d/comm", pid);
+    if ((f = fopen(buf, "r")) == NULL) {
+        fprintf(stderr, "cannot open %s: %s\n", buf, strerror(errno));
+        return -1;
+    }
+
+    if (fgets(buf, sizeof(buf), f)) {
+        i = strcspn(buf, "\n");
+        buf[i] = '\0';
+        printf("%s", buf);
+        rc = 0;
+    }
+
+    fclose(f);
+    return rc;
+}
+
 /*
  * filter for scandir(). choose only thread identifiers
  */

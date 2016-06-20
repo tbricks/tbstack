@@ -28,6 +28,12 @@ struct mem_map *create_maps(int pid);
 int print_proc_maps(int pid);
 
 /*
+ * simple routine to print process comm for
+ * debugging or advanced error reporting
+ */
+int print_proc_comm(int pid);
+
+/*
  * get thread identifiers of the process
  */
 int get_threads(int pid, int **tids);
