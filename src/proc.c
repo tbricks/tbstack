@@ -215,9 +215,9 @@ int get_thread_comm(int pid, char * dst, size_t n)
     if (fgets(buf, sizeof(buf), f)) {
         i = strcspn(buf, "\n");
         buf[i] = '\0';
-        x = MAX(MIN(n-1, i+1), 0);
+        x = MAX(MIN(n, i+1), 1);
         strncpy(dst, buf, x);
-        dst[x] = '\0';
+        dst[x-1] = '\0';
         rc = x;
     }
 

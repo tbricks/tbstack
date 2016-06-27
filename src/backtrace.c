@@ -108,10 +108,16 @@ int backtrace_snapshot(int pid, int *tids, int *index, int nr_tids)
         return -1;
 
     for (i = 0; i < snap->num_threads; ++i) {
+        int x;
         char comm[16];
+        char end_pad[25] = "------------------------";
 
-        get_thread_comm(snap->tids[i], comm, sizeof(comm));
-        printf("--------------------  thread %d (%d) (%s)  --------------------\n", (index != NULL ? index[i] : i+1), snap->tids[i], comm);
+        x = get_thread_comm(snap->tids[i], comm, sizeof(comm));
+        if (x > 0 && x <= sizeof(end_pad))
+        {
+            end_pad[sizeof(end_pad) - x] = '\0';
+            printf("-------------- thread %d (%d) (%s) %s\n", (index != NULL ? index[i] : i+1), snap->tids[i], comm, end_pad);
+        }
 
         snap->cur_thr = i;
         if (backtrace_thread(&snapshot_addr_space_accessors, snap) < 0)
@@ -146,11 +152,17 @@ int backtrace_ptrace(int pid, int *tids, int *index, int nr_tids)
 
     for (i = 0; i < count; ++i) {
         void *upt_info;
+        int x;
         char comm[16];
+        char end_pad[25] = "------------------------";
 
-        get_thread_comm(threads[i], comm, sizeof(comm));
+        x = get_thread_comm(threads[i], comm, sizeof(comm));
 
-        printf("--------------------  thread %d (%d) (%s)  --------------------\n",(index != NULL ? index[i] : i+1), threads[i], comm);
+        if (x > 0 && x <= sizeof(end_pad))
+        {
+            end_pad[sizeof(end_pad) - x] = '\0';
+            printf("-------------- thread %d (%d) (%s) %s\n", (index != NULL ? index[i] : i + 1), threads[i], comm, end_pad);
+        }
 
         if (threads[i] != pid && attach_thread(threads[i]) < 0) {
             rc = -1;
