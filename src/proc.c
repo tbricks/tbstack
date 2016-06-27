@@ -34,6 +34,9 @@
 
 #define SLEEP_WAIT 500
 
+#define MAX(a,b) ((a) > (b) ? a : b)
+#define MIN(a,b) ((a) < (b) ? a : b)
+
 int attached_pid = 0;
 
 /* timeout on waiting for process to stop (us) */
@@ -191,12 +194,17 @@ int print_proc_maps(int pid)
     return system(cmd);
 }
 
-int print_proc_comm(int pid)
+int get_thread_comm(int pid, char * dst, size_t n)
 {
     FILE *f;
-    char buf[32] = "";
-    int i;
+    char buf[32];
+    int i, x;
     int rc = -1;
+
+    if (dst == NULL)
+    {
+        return -1;
+    }
 
     snprintf(buf, sizeof(buf), "/proc/%d/comm", pid);
     if ((f = fopen(buf, "r")) == NULL) {
@@ -207,8 +215,10 @@ int print_proc_comm(int pid)
     if (fgets(buf, sizeof(buf), f)) {
         i = strcspn(buf, "\n");
         buf[i] = '\0';
-        printf("%s", buf);
-        rc = 0;
+        x = MAX(MIN(n-1, i+1), 0);
+        strncpy(dst, buf, x);
+        dst[x] = '\0';
+        rc = x;
     }
 
     fclose(f);
