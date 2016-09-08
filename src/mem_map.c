@@ -619,7 +619,7 @@ static struct mem_region *mem_map_find_region(struct mem_map *map, void *addr)
 
     if (region_ptr == NULL) {
         fprintf(stderr,
-                "cannot find region of memory containing 0x%lx\nmap:\n",
+                "cannot find region of memory containing 0x%lx\n",
                 (size_t)addr);
         region = NULL;
     } else {
