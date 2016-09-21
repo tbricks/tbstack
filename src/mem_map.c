@@ -290,6 +290,8 @@ static int mem_region_build_label_cover(struct mem_region *region,
 static int mem_region_map_file(struct mem_region *region)
 {
     void *data;
+    struct stat stat_buf;
+    size_t length = region->length;
 
     if (region->path == NULL || *region->path == '\0') {
         fprintf(stderr, "trying to map file for region 0x%lx-0x%lx "
@@ -304,8 +306,26 @@ static int mem_region_map_file(struct mem_region *region)
         return -1;
     }
 
-    data = mmap(NULL, region->length, PROT_READ,
-            MAP_SHARED, region->fd, region->offset);
+    if (fstat(region->fd, &stat_buf) < 0) {
+        int err = errno;
+        fprintf(stderr, "failed to stat file %s: %s\n", region->path, strerror(err));
+        return -1;
+    }
+
+    if (region->offset > stat_buf.st_size) {
+        return -1;
+    }
+
+    // Accessing beyond the length of the file, even though we can map a
+    // region larger than the size of the file, will cause a SIGBUS, so
+    // truncate the length of the map to fit within the file.
+    if (region->length > stat_buf.st_size - region->offset) {
+        length = stat_buf.st_size - region->offset;
+    }
+
+    data = mmap(NULL, length, PROT_READ, MAP_SHARED, region->fd,
+                region->offset);
+
     if (data == MAP_FAILED) {
         int err = errno;
         fprintf(stderr, "failed to mmap file %s (length 0x%lx, read, offset "
@@ -318,7 +338,7 @@ static int mem_region_map_file(struct mem_region *region)
     mem_data_chunk_init(region->data_head);
     region->data_head->start = region->start;
     region->data_head->data = data;
-    region->data_head->length = region->length;
+    region->data_head->length = length;
 
     region->data_index = malloc(sizeof(struct mem_data_chunk**));
     *region->data_index = region->data_head;
@@ -599,7 +619,7 @@ static struct mem_region *mem_map_find_region(struct mem_map *map, void *addr)
 
     if (region_ptr == NULL) {
         fprintf(stderr,
-                "cannot find region of memory containing 0x%lx\nmap:\n",
+                "cannot find region of memory containing 0x%lx\n",
                 (size_t)addr);
         region = NULL;
     } else {
