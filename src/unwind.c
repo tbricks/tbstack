@@ -512,20 +512,21 @@ static int find_proc_info(unw_addr_space_t as, unw_word_t ip,
     uint64_t elf_length = 0;
     unw_dyn_info_t di;
     uint64_t table_data, segbase, fde_count;
+    int rc = -UNW_EINVAL;
 
     if (ip == 0)
         return -UNW_ENOINFO;
 
     if ((region = mem_map_get_file_region(snap->map, (void *)ip)) == NULL)
-        return -UNW_EINVAL;
+        return rc;
 
     if (region->fd < 0 && region->type != MEM_REGION_TYPE_VDSO
             && region->type != MEM_REGION_TYPE_VSYSCALL)
-        return -UNW_EINVAL;
+        return rc;
 
     if (region->fd < 0 &&
             get_elf_image_info(region, &elf_image, &elf_length, ip) < 0)
-        return -UNW_EINVAL;
+        return rc;
 
     memset(&di, 0, sizeof(di));
 
@@ -540,8 +541,11 @@ static int find_proc_info(unw_addr_space_t as, unw_word_t ip,
         di.u.rti.table_len =
             fde_count * sizeof(uint32_t) * 2 / sizeof(unw_word_t);
 
-        return search_unwind_table(as, ip, &di, pip, need_unwind_info, arg);
+        rc = search_unwind_table(as, ip, &di, pip, need_unwind_info, arg);
     }
+
+    if (rc == 0)
+        return rc;
 
 #ifdef HAVE_DWARF
     unw_word_t base = 0;
@@ -557,7 +561,7 @@ static int find_proc_info(unw_addr_space_t as, unw_word_t ip,
             return search_unwind_table(as, ip, &di, pip, need_unwind_info, arg);
 #endif
 
-    return -UNW_EINVAL;
+    return rc;
 }
 
 /*
