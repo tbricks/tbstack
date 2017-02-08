@@ -536,8 +536,8 @@ static int find_proc_info(unw_addr_space_t as, unw_word_t ip,
         di.format = UNW_INFO_FORMAT_REMOTE_TABLE;
         di.start_ip = (unw_word_t)region->start;
         di.end_ip = (unw_word_t)region->start + region->length;
-        di.u.rti.segbase = (unw_word_t)region->start + segbase;
-        di.u.rti.table_data = (unw_word_t)region->start + table_data;
+        di.u.rti.segbase = (unw_word_t)(region->start - region->offset) + segbase;
+        di.u.rti.table_data = (unw_word_t)(region->start - region->offset) + table_data;
         di.u.rti.table_len =
             fde_count * sizeof(uint32_t) * 2 / sizeof(unw_word_t);
 
