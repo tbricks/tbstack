@@ -45,9 +45,8 @@ usage:    tbstack <pid>
 options:  --help                show this
           --ignore-deleted      try to open shared objects marked as deleted
           --use-waitpid-timeout set alarm to interrupt waitpid
-          --proc-mem            prefer reading /proc/pid/mem (default on systems
-                                with kernel older than 3.2. on modern kernels
-                                default flavor is process_vm_readv)
+          --proc-mem            prefer reading /proc/pid/mem. default flavor
+                                is process_vm_readv
           --ptrace              use libunwind-ptrace interface (slower)
           --show-rsp            show %rsp in second column
           --stack-size <size>   maximum stack size to copy (default is current
@@ -76,8 +75,8 @@ it examines process' memory layout reading /proc/pid/maps. When the process is
 frozen (PTRACE_ATTACH to the main thread + SIGSTOP to start freezing other
 threads) it copies all threads' general-purpose registers and contents of stack
 from %rsp to end of memory region or up to maximum stack size if specified
-with --stack-size argument. System call proc_vm_readv is used on kernels from
-version 3.2, on older kernels data is read from /proc/pid/mem. The process
+with --stack-size argument. System call proc_vm_readv is used. If it is not
+supported, the program falls back to reading /proc/pid/mem. The process
 continues execution. The collected data is enough to trace stacks. It is
 arranged in structures snapshot and mem_map and can be accessed through callback
 routines passed to libunwind by unw_create_addr_space (see
