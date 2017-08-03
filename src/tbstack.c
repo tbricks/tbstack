@@ -50,9 +50,8 @@ static int usage(const char *name)
 "options:  --help                show this\n"
 "          --ignore-deleted      try to open shared objects marked as deleted\n"
 "          --use-waitpid-timeout set alarm to interrupt waitpid\n"
-"          --proc-mem            prefer reading /proc/pid/mem (default on systems\n"
-"                                with kernel older than 3.2. on modern kernels\n"
-"                                default flavor is process_vm_readv)\n"
+"          --proc-mem            prefer reading /proc/pid/mem. default flavor\n"
+"                                is process_vm_readv\n"
 #if !defined (NO_LIBUNWIND_PTRACE)
 "          --ptrace              use libunwind-ptrace interface (slower)\n"
 #endif

@@ -47,7 +47,9 @@ size_t total_length = 0;
 extern struct timeval freeze_time;
 extern struct timeval unfreeze_time;
 
+extern int opt_proc_mem;
 extern int opt_use_waitpid_timeout;
+extern int opt_verbose;
 
 int proc_stopped(int pid)
 {
@@ -365,7 +367,16 @@ int wait_thread(int tid)
     return (rc == -1 ? -1 : 0);
 }
 
-int copy_memory_process_vm_readv(int pid,
+/*
+ * copy memory contents using process_vm_readv(). reduces number
+ * of system calls comparing to /proc/pid/mem
+ *
+ * return values:
+ *      0  success
+ *     -1  fail
+ * ENOSYS  process_vm_readv() is not supported
+ */
+static int copy_memory_process_vm_readv(int pid,
         struct mem_data_chunk **frames, int n_frames)
 {
     struct iovec *local_iov, *remote_iov;
@@ -404,7 +415,11 @@ int copy_memory_process_vm_readv(int pid,
                 0ULL);
 
         if (bytes_read < 0) {
-            perror("process_vm_readv");
+            if (errno == ENOSYS)
+                rc = ENOSYS;
+            else
+                perror("process_vm_readv");
+
             goto process_vm_readv_end;
         }
 
@@ -438,7 +453,11 @@ process_vm_readv_end:
     return rc;
 }
 
-int copy_memory_proc_mem(int pid, struct mem_data_chunk **frames, int n_frames)
+/*
+ * read the file /proc/<pid>/mem
+ */
+static int copy_memory_proc_mem(int pid, struct mem_data_chunk **frames,
+        int n_frames)
 {
     int i = 0;
     char fname[32];
@@ -479,6 +498,23 @@ int copy_memory_proc_mem(int pid, struct mem_data_chunk **frames, int n_frames)
 proc_mem_end:
     close(fd);
     return rc;
+}
+
+int copy_memory(int pid, struct mem_data_chunk **frames, int n_frames)
+{
+    if (!opt_proc_mem) {
+        int rc = copy_memory_process_vm_readv(pid, frames, n_frames);
+        if (rc == ENOSYS) {
+            if (opt_verbose) {
+                fprintf(stderr, "process_vm_readv is not supported, falling "
+                                "back to /proc/pid/mem\n");
+            }
+        } else {
+            return rc;
+        }
+    }
+
+    return copy_memory_proc_mem(pid, frames, n_frames);
 }
 
 void *get_vdso()

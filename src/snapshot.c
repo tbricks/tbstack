@@ -14,11 +14,8 @@
 #include <sys/ptrace.h>
 #include <sys/types.h>
 #include <sys/user.h>
-#include <sys/utsname.h>
 #include <unistd.h>
 
-extern int opt_proc_mem;
-extern int opt_process_vm_readv;
 extern size_t stack_size;
 extern int opt_verbose;
 
@@ -35,30 +32,6 @@ void snapshot_destroy(struct snapshot *snap)
     free(snap);
 }
 
-static int get_kernel_version(int *major, int *minor)
-{
-    struct utsname name;
-    char *chr1, *chr2;
-
-    if (uname(&name) < 0) {
-        perror("uname");
-        return -1;
-    }
-
-    if ((chr1 = strchr(name.release, '.')) != NULL) {
-        *chr1 = '\0';
-        if ((chr2 = strchr(++chr1, '.')) != NULL)
-            *chr2 = '\0';
-
-        *major = atoi(name.release);
-        *minor = atoi(chr1);
-        return 0;
-    }
-
-    fprintf(stderr, "invalid kernel release: %s\n", name.release);
-    return -1;
-}
-
 /*
  * save process' memory maps, stack contents, thread identifiers and registers
  */
@@ -69,7 +42,6 @@ struct snapshot *get_snapshot(int pid, int *tids, int *index, int nr_tids)
     long page, label, rc;
     struct mem_data_chunk **stacks_cover = NULL;
     int v_major, v_minor;
-    int use_process_vm_readv = 0;
 
     if ((page = sysconf(_SC_PAGESIZE)) < 0) {
         perror("get pagesize");
@@ -111,20 +83,6 @@ struct snapshot *get_snapshot(int pid, int *tids, int *index, int nr_tids)
     if (res->regs == NULL) {
         perror("malloc");
         goto get_snapshot_fail;
-    }
-
-    /*
-     * decide how to copy memory contents of the process. on newer kernels
-     * proc_vm_readv() is used by default. on older kernels or when the option
-     * --proc-mem is specified read the file /proc/<pid>/mem
-     */
-    if (!opt_proc_mem) {
-        if (get_kernel_version(&v_major, &v_minor) < 0)
-            goto get_snapshot_fail;
-        if (((v_major << 16) | v_minor) >= 0x30002)
-            use_process_vm_readv = 1;
-    } else {
-        use_process_vm_readv = 0;
     }
 
     /* FREEZE PROCESS */
@@ -187,9 +145,7 @@ struct snapshot *get_snapshot(int pid, int *tids, int *index, int nr_tids)
     /*
      * copy memory contents
      */
-    rc = use_process_vm_readv ?
-        copy_memory_process_vm_readv(pid, stacks_cover, n_frames) :
-        copy_memory_proc_mem(pid, stacks_cover, n_frames);
+    rc = copy_memory(pid, stacks_cover, n_frames);
 
     if (rc < 0)
         goto get_snapshot_fail_attached;

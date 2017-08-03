@@ -66,17 +66,9 @@ int detach_thread(int tid);
 int wait_thread(int tid);
 
 /*
- * copy memory contents using process_vm_readv(). reduces number
- * of system calls comparing to /proc/mem
+ * copy process' memory contents
  */
-int copy_memory_process_vm_readv(int pid,
-        struct mem_data_chunk **frames, int n_frames);
-
-/*
- * read the file /proc/<pid>/mem on older kernels
- */
-int copy_memory_proc_mem(int pid,
-        struct mem_data_chunk **frames, int n_frames);
+int copy_memory(int pid, struct mem_data_chunk **frames, int n_frames);
 
 /*
  * resolve VDSO mapping address
