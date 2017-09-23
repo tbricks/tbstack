@@ -40,11 +40,11 @@ static void mem_data_chunk_init(struct mem_data_chunk *chunk)
 }
 
 static int mem_data_chunk_read_word(struct mem_data_chunk *chunk,
-        void *addr, uint64_t *value)
+        void *addr, uintptr_t *value)
 {
     size_t offset = (size_t)addr - (size_t)chunk->start;
     assert(offset < chunk->length);
-    *value = *(uint64_t*)(chunk->data + offset);
+    *value = *(uintptr_t *)(chunk->data + offset);
     return 0;
 }
 
@@ -246,6 +246,13 @@ static void mem_region_create_data_chunk_index(struct mem_region *region)
     }
 }
 
+static char *addr_increment_clamped(char *start, char *end, size_t increment)
+{
+    assert(end >= start);
+    return ((size_t)(end - start) <= increment) ?
+            end : start + increment;
+}
+
 static int mem_region_build_label_cover(struct mem_region *region,
         size_t generic_chunk_size, struct mem_data_chunk **chunks, size_t align)
 {
@@ -260,20 +267,14 @@ static int mem_region_build_label_cover(struct mem_region *region,
 
         region_end = (char *)region->start + region->length;
         cur_start = region->labels[i];
-        cur_end = cur_start + generic_chunk_size;
-        if (cur_end > region_end)
-            cur_end = region_end;
+        cur_end = addr_increment_clamped(cur_start, region_end, generic_chunk_size);
 
         for (++i; i < region->num_labels; ++i) {
             if ((size_t)region->labels[i] <= (size_t)cur_end) {
-                size_t cur_length;
-                cur_end = (char *)region->labels[i] + generic_chunk_size;
-
-                cur_length = (size_t)cur_end - (size_t)region->start;
-                if (cur_end > region_end) {
-                    cur_end = region_end;
+                cur_end = addr_increment_clamped((char *)region->labels[i],
+                                                 region_end, generic_chunk_size);
+                if (cur_end == region_end)
                     break;
-                }
             }
         }
 
@@ -430,7 +431,7 @@ struct mem_data_chunk *mem_region_find_data_chunk(
 }
 
 static int mem_region_read_word(struct mem_region *region,
-        void *addr, uint64_t *value)
+        void *addr, uintptr_t *value)
 {
     struct mem_data_chunk *chunk;
 
@@ -703,7 +704,7 @@ static void mem_map_create_data_chunk_indices(struct mem_map *map)
         mem_region_create_data_chunk_index(cur);
 }
 
-int mem_map_read_word(struct mem_map *map, void *addr, uint64_t *value)
+int mem_map_read_word(struct mem_map *map, void *addr, uintptr_t *value)
 {
     struct mem_region *region;
 
