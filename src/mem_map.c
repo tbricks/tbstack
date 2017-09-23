@@ -193,20 +193,6 @@ static const char *str_mem_region_type(int type)
     return "unknown";
 }
 
-static size_t mem_region_sprint(const struct mem_region *region, char *buf)
-{
-    return sprintf(buf, "region addr: %lx-%lx len: %lx off: %lx num_chunks: %ld "
-                 "path='%s' fd=%d type=%s",
-                 (size_t)region->start,
-                 (size_t)region->start+region->length,
-                 region->length,
-                 region->offset,
-                 region->num_data_chunks,
-                 region->path,
-                 region->fd,
-                 str_mem_region_type(region->type));
-}
-
 static void mem_region_print(const struct mem_region *region)
 {
     fprintf(stderr,
@@ -313,7 +299,7 @@ static int mem_region_map_file(struct mem_region *region)
         return -1;
     }
 
-    if (region->offset > stat_buf.st_size) {
+    if (region->offset > (size_t)stat_buf.st_size) {
         return -1;
     }
 
@@ -684,26 +670,6 @@ int mem_map_build_label_cover(struct mem_map *map, size_t generic_chunk_size,
     return n;
 }
 
-static int mem_map_add_data_chunk(struct mem_map *map,
-        struct mem_data_chunk *chunk)
-{
-    struct mem_region *region;
-
-    region = mem_map_find_region(map, chunk->start);
-    if (region == NULL)
-        return -1;
-
-    return mem_region_add_data_chunk(region, chunk);
-}
-
-static void mem_map_create_data_chunk_indices(struct mem_map *map)
-{
-    struct mem_region *cur;
-
-    for (cur = map->list_head; cur != NULL; cur = cur->next)
-        mem_region_create_data_chunk_index(cur);
-}
-
 int mem_map_read_word(struct mem_map *map, void *addr, uintptr_t *value)
 {
     struct mem_region *region;
@@ -727,10 +693,9 @@ void mem_map_destroy(struct mem_map *map)
 
 void mem_map_print(const struct mem_map *map)
 {
-    size_t pos;
     struct mem_region *region;
 
-    pos = fprintf(stderr, "mem map with %ld regions\n", map->num_regions);
+    fprintf(stderr, "mem map with %ld regions\n", map->num_regions);
     region = map->list_head;
     for (; region != NULL; region = region->next)
         mem_region_print(region);

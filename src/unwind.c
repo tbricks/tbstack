@@ -511,7 +511,8 @@ static int find_proc_info(unw_addr_space_t as, unw_word_t ip,
     char *elf_image = NULL;
     uint64_t elf_length = 0;
     unw_dyn_info_t di;
-    uint64_t table_data, segbase, fde_count;
+    uint64_t table_data = 0;
+    uint64_t segbase, fde_count;
     int rc = -UNW_EINVAL;
 
     if (ip == 0)
@@ -569,7 +570,11 @@ static int find_proc_info(unw_addr_space_t as, unw_word_t ip,
  */
 static void put_unwind_info(unw_addr_space_t as,
         unw_proc_info_t *pip, void *arg)
-{}
+{
+    (void) as;
+    (void) pip;
+    (void) arg;
+}
 
 /*
  * not used
@@ -577,6 +582,9 @@ static void put_unwind_info(unw_addr_space_t as,
 static int get_dyn_info_list_addr(unw_addr_space_t as,
         unw_word_t *dilap, void *arg)
 {
+    (void) as;
+    (void) dilap;
+    (void) arg;
     return -UNW_ENOINFO;
 }
 
@@ -587,6 +595,8 @@ static int access_mem(unw_addr_space_t as, unw_word_t addr,
         unw_word_t *valp, int write, void *arg)
 {
     struct snapshot *snap = arg;
+
+    (void) as;
 
     if (write) {
         fprintf(stderr, "access_mem: requested write, rejecting\n");
@@ -603,6 +613,8 @@ static int access_reg(unw_addr_space_t as, unw_regnum_t reg,
         unw_word_t *val, int write, void *arg)
 {
     struct snapshot *snap = arg;
+
+    (void) as;
 
     if (write) {
         fprintf(stderr, "requested to write into register\n");
@@ -726,6 +738,12 @@ static int access_reg(unw_addr_space_t as, unw_regnum_t reg,
 static int access_fpreg(unw_addr_space_t as, unw_regnum_t regnum,
         unw_fpreg_t *fpvalp, int write, void *arg)
 {
+    (void) as;
+    (void) regnum;
+    (void) fpvalp;
+    (void) write;
+    (void) arg;
+
     fprintf(stderr, "access_fpreg is not supported\n");
     return -UNW_ENOINFO;
 }
@@ -735,6 +753,10 @@ static int access_fpreg(unw_addr_space_t as, unw_regnum_t regnum,
  */
 static int resume(unw_addr_space_t as, unw_cursor_t *cp, void *arg)
 {
+    (void) as;
+    (void) cp;
+    (void) arg;
+
     fprintf(stderr, "resume is not supported\n");
     return -UNW_ENOINFO;
 }
@@ -748,6 +770,8 @@ static int get_proc_name(unw_addr_space_t as, unw_word_t addr, char *bufp,
     struct snapshot *snap = arg;
     struct mem_region *region;
     char *name = NULL;
+
+    (void) as;
 
     if (addr == 0)
         return -UNW_ENOINFO;

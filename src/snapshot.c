@@ -40,10 +40,10 @@ void snapshot_destroy(struct snapshot *snap)
 struct snapshot *get_snapshot(int pid, int *tids, int *index, int nr_tids)
 {
     struct snapshot *res;
-    int i, attached_tid, n_frames;
+    int attached_tid = 0;
+    int i, n_frames;
     long page, label, rc;
     struct mem_data_chunk **stacks_cover = NULL;
-    int v_major, v_minor;
 
     if ((page = sysconf(_SC_PAGESIZE)) < 0) {
         perror("get pagesize");
