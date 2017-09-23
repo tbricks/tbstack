@@ -12,11 +12,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/ptrace.h>
-#include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/user.h>
 #include <unistd.h>
-#include <elf.h>
 
 extern size_t stack_size;
 extern int opt_verbose;
@@ -81,7 +79,7 @@ struct snapshot *get_snapshot(int pid, int *tids, int *index, int nr_tids)
 
     res->cur_thr = 0;
 
-    res->regs = malloc(sizeof(res->regs[0])*res->num_threads);
+    res->regs = malloc(sizeof(struct user_regs_struct)*res->num_threads);
     if (res->regs == NULL) {
         perror("malloc");
         goto get_snapshot_fail;
@@ -92,8 +90,6 @@ struct snapshot *get_snapshot(int pid, int *tids, int *index, int nr_tids)
         goto get_snapshot_fail;
 
     for (i = 0; i < res->num_threads; ++i) {
-        struct iovec iov;
-
         /*
          * we have already attached to main thread. call attach_thread()
          * for other ones
@@ -105,11 +101,9 @@ struct snapshot *get_snapshot(int pid, int *tids, int *index, int nr_tids)
         /*
          * save thread's registers
          */
-        iov.iov_len = sizeof(res->regs[0]);
-        iov.iov_base = &res->regs[i];
-        rc = ptrace(PTRACE_GETREGSET, res->tids[i], NT_PRSTATUS, &iov);
+        rc = ptrace(PTRACE_GETREGS, res->tids[i], NULL, &res->regs[i]);
         if (rc < 0) {
-            perror("PTRACE_GETREGSET");
+            perror("PTRACE_GETREGS");
             goto get_snapshot_fail_attached;
         }
 
@@ -117,12 +111,12 @@ struct snapshot *get_snapshot(int pid, int *tids, int *index, int nr_tids)
          * save label on memory region. it will indicate that memory contents
          * upper than this point (%rsp) will needed to unwind stacks
          */
-        label = SP_REG(&res->regs[i]) & ~page;
+        label = res->regs[i].rsp & ~page;
         rc = mem_map_add_label(res->map, (void *)label, res->num_threads);
 
         if (rc < 0) {
-            fprintf(stderr, "failed to add label 0x%lx [rsp 0x%llx thread %d]\n",
-                    label, (long long unsigned int)SP_REG(&res->regs[i]), res->tids[i]);
+            fprintf(stderr, "failed to add label 0x%lx [rsp 0x%lx thread %d]\n",
+                    label, res->regs[i].rsp, res->tids[i]);
             goto get_snapshot_fail_attached;
         }
 
