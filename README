@@ -50,6 +50,7 @@ options:  --help                show this
                                 is process_vm_readv
           --ptrace              use libunwind-ptrace interface (slower)
           --show-rsp            show %rsp in second column
+          --show-state          show thread state before freeze
           --stack-size <size>   maximum stack size to copy (default is current
                                 RLIMIT_STACK)
           --stop-timeout        timeout for waiting the process to freeze, in
