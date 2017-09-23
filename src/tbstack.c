@@ -247,6 +247,7 @@ static void check_libelf_version()
 
 static void alarm_handler(int signo)
 {
+    (void) signo;
 };
 
 static void setup_signals()
