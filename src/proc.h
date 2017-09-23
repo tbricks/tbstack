@@ -12,9 +12,9 @@ struct mem_data_chunk;
 struct mem_map;
 
 /*
- * check if the process is in state stopped (S)
+ * get process state (R, S, D, T, ...)
  */
-int proc_stopped(int pid);
+char proc_state(int pid);
 
 /*
  * parse /proc/<pid>/maps file and create mem_map structure
@@ -31,6 +31,11 @@ int print_proc_maps(int pid);
  * get thread identifiers of the process
  */
 int get_threads(int pid, int **tids);
+
+/*
+ * get thread states
+ */
+char *get_thread_states(const int *tids, int n);
 
 /*
  * translate thread numbers to system lwp ids

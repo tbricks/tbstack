@@ -19,6 +19,7 @@
 #include <elf.h>
 
 extern size_t stack_size;
+extern int opt_show_state;
 extern int opt_verbose;
 
 void snapshot_destroy(struct snapshot *snap)
@@ -31,6 +32,7 @@ void snapshot_destroy(struct snapshot *snap)
 
     free(snap->regs);
     free(snap->tids);
+    free(snap->states);
     free(snap);
 }
 
@@ -86,6 +88,12 @@ struct snapshot *get_snapshot(int pid, int *tids, int *index, int nr_tids)
         perror("malloc");
         goto get_snapshot_fail;
     }
+
+    /*
+     * get thread states if requested by user
+     */
+    if (opt_show_state)
+        res->states = get_thread_states(res->tids, res->num_threads);
 
     /* FREEZE PROCESS */
     if (attach_process(pid) < 0)
