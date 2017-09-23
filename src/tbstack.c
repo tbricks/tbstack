@@ -37,6 +37,7 @@ size_t stack_size = 0;
 int opt_proc_mem = 0;
 int opt_ptrace = 0;
 int opt_show_rsp = 0;
+int opt_show_state = 0;
 int opt_verbose = 0;
 int stop_timeout = 1000000;
 int opt_ignore_deleted = 0;
@@ -56,6 +57,7 @@ static int usage(const char *name)
 "          --ptrace              use libunwind-ptrace interface (slower)\n"
 #endif
 "          --show-rsp            show %%rsp in second column\n"
+"          --show-state          show thread states\n"
 "          --stack-size <size>   maximum stack size to copy (default is current\n"
 "                                RLIMIT_STACK)\n"
 "          --stop-timeout        timeout for waiting the process to freeze, in\n"
@@ -149,6 +151,7 @@ static void parse_options(int argc, char **argv)
             { "stop-timeout", 1, NULL, 0},
             { "ignore-deleted", 0, NULL, 0},
             { "use-waitpid-timeout", 0, NULL, 0 },
+            { "show-state", 0, NULL, 0 },
             { 0, 0, 0, 0 }
         };
 
@@ -210,6 +213,10 @@ static void parse_options(int argc, char **argv)
 
             case 8:
                 opt_use_waitpid_timeout = 1;
+                break;
+
+            case 9:
+                opt_show_state = 1;
                 break;
 
             default:

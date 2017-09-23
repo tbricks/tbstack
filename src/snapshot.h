@@ -36,6 +36,8 @@ struct snapshot
     struct mem_map *map;
     /* thread identifiers */
     int *tids;
+    /* thread states */
+    char *states;
     /* number of threads */
     int num_threads;
     /* current thread (used when unwinding stack) */
