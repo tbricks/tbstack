@@ -92,7 +92,7 @@ static void parse_pid_arg(const char *prog, char *arg)
         pos = tstr;
         if (*pos == ',')
             goto parse_pid_arg_invalid_list;
-        while (c = *pos++) {
+        while ((c = *pos++)) {
             if (c == ',') {
                 if (prev == ',' || prev == '\0')
                     goto parse_pid_arg_invalid_list;

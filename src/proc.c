@@ -472,7 +472,7 @@ static int copy_memory_proc_mem(int pid, struct mem_data_chunk **frames,
     }
 
     for (i = 0; i < n_frames; ++i) {
-        off_t from = (off_t)frames[i]->start;
+        off_t from = (off_t)(uintptr_t)frames[i]->start;
         char *to = frames[i]->data;
         size_t count = frames[i]->length;
 

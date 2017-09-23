@@ -13,7 +13,8 @@
 #include <gelf.h>
 #include <libelf.h>
 #include <libgen.h>
-#include <libunwind-x86_64.h>
+#include <libunwind.h>
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/user.h>
@@ -26,6 +27,19 @@
 extern int search_unwind_table(unw_addr_space_t as, unw_word_t ip,
         unw_dyn_info_t *di, unw_proc_info_t *pip,
         int need_unwind_info, void *arg);
+
+
+#ifdef HAVE_DWARF
+#define dwarf_find_debug_frame UNW_OBJ(dwarf_find_debug_frame)
+
+extern int
+UNW_OBJ(dwarf_find_debug_frame)(int found, unw_dyn_info_t *di_debug,
+                                unw_word_t ip,
+                                unw_word_t segbase,
+                                const char *obj_name, unw_word_t start,
+                                unw_word_t end);
+#endif
+
 
 /*
  * get dwarf encoded value
@@ -403,7 +417,7 @@ proc_name_end:
  * get mmapped ELF image info
  */
 static int get_elf_image_info(struct mem_region *region,
-        char **elf_image, uint64_t *elf_length, uint64_t ip)
+        char **elf_image, uint64_t *elf_length, uintptr_t ip)
 {
     struct mem_data_chunk *chunk;
 
@@ -419,6 +433,73 @@ static int get_elf_image_info(struct mem_region *region,
     return 0;
 }
 
+#ifdef HAVE_DWARF
+static int elf_is_exec(int fd, char *image, uint64_t size)
+{
+    Elf *elf;
+    GElf_Ehdr ehdr;
+    int ret = 0;
+
+    if ((elf = elf_start(fd, image, size)) == NULL)
+        return 0;
+
+    if (gelf_getehdr(elf, &ehdr) == NULL) {
+        fprintf(stderr, "elf_getehdr: %s\n", elf_errmsg(elf_errno()));
+        goto elf_is_exec_end;
+    }
+
+    ret = ehdr.e_type == ET_EXEC;
+
+elf_is_exec_end:
+    elf_end(elf);
+
+    return ret;
+}
+
+static int elf_get_link_base(int fd, char *image, uint64_t size,
+        uint64_t *link_base)
+{
+    Elf *elf;
+    GElf_Ehdr ehdr;
+    GElf_Phdr phdr;
+    int idx=0;
+    uint64_t offset = UINT64_MAX;
+
+    if ((elf = elf_start(fd, image, size)) == NULL)
+        return -1;
+
+    if (gelf_getehdr(elf, &ehdr) == NULL) {
+        fprintf(stderr, "elf_getehdr: %s\n", elf_errmsg(elf_errno()));
+        goto elf_section_offset_end;
+    }
+
+    /* Get the vaddr of the segment with 0 offset.  This is the link base of
+     * the shared object. */
+    while (gelf_getphdr(elf, idx, &phdr) && phdr.p_type != PT_NULL) {
+	if (phdr.p_type != PT_LOAD)
+	    goto next;
+
+	if (phdr.p_offset)
+	    goto next;
+
+	offset = phdr.p_vaddr;
+	break;
+
+next:
+	idx++;
+    }
+
+    *link_base = offset;
+    elf_end(elf);
+    return 0;
+
+elf_section_offset_end:
+    elf_end(elf);
+    return -1;
+}
+
+#endif
+
 /*
  * find unwind info for function
  */
@@ -431,37 +512,56 @@ static int find_proc_info(unw_addr_space_t as, unw_word_t ip,
     uint64_t elf_length = 0;
     unw_dyn_info_t di;
     uint64_t table_data, segbase, fde_count;
+    int rc = -UNW_EINVAL;
 
     if (ip == 0)
         return -UNW_ENOINFO;
 
     if ((region = mem_map_get_file_region(snap->map, (void *)ip)) == NULL)
-        return -UNW_EINVAL;
+        return rc;
 
     if (region->fd < 0 && region->type != MEM_REGION_TYPE_VDSO
             && region->type != MEM_REGION_TYPE_VSYSCALL)
-        return -UNW_EINVAL;
+        return rc;
 
     if (region->fd < 0 &&
             get_elf_image_info(region, &elf_image, &elf_length, ip) < 0)
-        return -UNW_EINVAL;
+        return rc;
+
+    memset(&di, 0, sizeof(di));
 
     if (!find_eh_frame_hdr(region->fd, elf_image, elf_length,
                 &table_data, &segbase, &fde_count)) {
-        memset(&di, 0, sizeof(di));
 
         di.format = UNW_INFO_FORMAT_REMOTE_TABLE;
         di.start_ip = (unw_word_t)region->start;
         di.end_ip = (unw_word_t)region->start + region->length;
-        di.u.rti.segbase = (unw_word_t)region->start + segbase;
-        di.u.rti.table_data = (unw_word_t)region->start + table_data;
+        di.u.rti.segbase = (unw_word_t)(region->start - region->offset) + segbase;
+        di.u.rti.table_data = (unw_word_t)(region->start - region->offset) + table_data;
         di.u.rti.table_len =
             fde_count * sizeof(uint32_t) * 2 / sizeof(unw_word_t);
 
-        return search_unwind_table(as, ip, &di, pip, need_unwind_info, arg);
+        rc = search_unwind_table(as, ip, &di, pip, need_unwind_info, arg);
     }
 
-    return -UNW_EINVAL;
+    if (rc == 0)
+        return rc;
+
+#ifdef HAVE_DWARF
+    unw_word_t base = 0;
+    if (!elf_is_exec(region->fd, elf_image, elf_length)) {
+	uint64_t link_base;
+	if (elf_get_link_base(region->fd, elf_image, elf_length, &link_base))
+	    return -UNW_EINVAL;
+        base = (uintptr_t)region->start - link_base;
+    }
+
+    if (dwarf_find_debug_frame(0, &di, ip, base, region->path,
+                region->start, region->start + region->length))
+            return search_unwind_table(as, ip, &di, pip, need_unwind_info, arg);
+#endif
+
+    return rc;
 }
 
 /*
@@ -493,7 +593,7 @@ static int access_mem(unw_addr_space_t as, unw_word_t addr,
         return -UNW_EINVAL;
     }
 
-    return mem_map_read_word(snap->map, (void *)addr, valp);
+    return mem_map_read_word(snap->map, (void *)(uintptr_t)addr, valp);
 }
 
 /*
@@ -510,6 +610,55 @@ static int access_reg(unw_addr_space_t as, unw_regnum_t reg,
     }
 
     switch (reg) {
+#if defined(UNW_TARGET_AARCH64)
+    case UNW_AARCH64_X0 ... UNW_AARCH64_PC:
+        /*
+         * Currently this enum directly maps to the index so this is a no-op.
+         * Assert just in case.
+         */
+        reg -= UNW_AARCH64_X0;
+        assert(reg>= 0 && reg <= 32);
+        *val = snap->regs[snap->cur_thr].regs[reg];
+        break;
+#elif defined(UNW_TARGET_ARM)
+    case UNW_ARM_R0 ... UNW_ARM_R15:
+        /*
+         * Currently this enum directly maps to the index so this is a no-op.
+         * Assert just in case.
+         */
+        reg -= UNW_ARM_R0;
+        assert(reg >= 0 && reg <= 15);
+        *val = snap->regs[snap->cur_thr].uregs[reg];
+        break;
+#elif defined(UNW_TARGET_X86)
+    case UNW_X86_EAX:
+        *val = snap->regs[snap->cur_thr].eax;
+        break;
+    case UNW_X86_EDX:
+        *val = snap->regs[snap->cur_thr].edx;
+        break;
+    case UNW_X86_ECX:
+        *val = snap->regs[snap->cur_thr].ecx;
+        break;
+    case UNW_X86_EBX:
+        *val = snap->regs[snap->cur_thr].ebx;
+        break;
+    case UNW_X86_ESI:
+        *val = snap->regs[snap->cur_thr].esi;
+        break;
+    case UNW_X86_EDI:
+        *val = snap->regs[snap->cur_thr].edi;
+        break;
+    case UNW_X86_EBP:
+        *val = snap->regs[snap->cur_thr].ebp;
+        break;
+    case UNW_X86_ESP:
+        *val = snap->regs[snap->cur_thr].esp;
+        break;
+    case UNW_X86_EIP:
+        *val = snap->regs[snap->cur_thr].eip;
+        break;
+#elif defined(UNW_TARGET_X86_64)
     case UNW_X86_64_RAX:
         *val = snap->regs[snap->cur_thr].rax;
         break;
@@ -561,6 +710,9 @@ static int access_reg(unw_addr_space_t as, unw_regnum_t reg,
     case UNW_X86_64_RIP:
         *val = snap->regs[snap->cur_thr].rip;
         break;
+#else
+#error Need porting to this arch
+#endif
     default:
         return -UNW_EBADREG;
     }
@@ -619,7 +771,7 @@ static int get_proc_name(unw_addr_space_t as, unw_word_t addr, char *bufp,
             return -UNW_ENOINFO;
 
         name = proc_name(region->fd, elf_image, elf_length,
-                (uint64_t)region->start, region->offset, addr, offp);
+                (uint64_t)(uintptr_t)region->start, region->offset, addr, offp);
     }
 
     if (name == NULL) {
