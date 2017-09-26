@@ -20,6 +20,15 @@
 #include <sys/user.h>
 
 /*
+ * some libelf implementations do not provide ELF_C_READ_MMAP
+ */
+#if HAVE_DECL_ELF_C_READ_MMAP
+#define TBSTACK_ELF_C_READ ELF_C_READ_MMAP
+#else
+#define TBSTACK_ELF_C_READ ELF_C_READ
+#endif
+
+/*
  * search unwind table for a procedure (used by find_proc_info)
  */
 #define search_unwind_table UNW_OBJ(dwarf_search_unwind_table)
@@ -155,7 +164,7 @@ static Elf *elf_start(int fd, char *image, uint64_t size)
     Elf *elf;
 
     if (fd > 0) {
-        if ((elf = elf_begin(fd, ELF_C_READ_MMAP, NULL)) == NULL)
+        if ((elf = elf_begin(fd, TBSTACK_ELF_C_READ, NULL)) == NULL)
             fprintf(stderr, "elf_begin: %s\n", elf_errmsg(elf_errno()));
     } else {
         if ((elf = elf_memory(image, size)) == NULL)
