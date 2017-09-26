@@ -59,6 +59,7 @@ else
 	AC_DEFINE([HAVE_DWARF],[1],[DWARF debug_frame support in libunwind])
 fi
 
+AC_CHECK_DECLS([ELF_C_READ_MMAP], [], [], [#include <libelf.h>])
 
 AC_CONFIG_FILES([
 	Makefile
