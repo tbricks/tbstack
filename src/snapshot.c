@@ -18,6 +18,10 @@
 #include <unistd.h>
 #include <elf.h>
 
+#ifndef PTRACE_GETREGSET
+#define PTRACE_GETREGSET 0x4204
+#endif
+
 extern size_t stack_size;
 extern int opt_verbose;
 
