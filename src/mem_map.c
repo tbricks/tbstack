@@ -131,12 +131,12 @@ static int mem_region_add_data_chunk(struct mem_region *region,
         if (in(chunk->start, (*cur)->start, (*cur)->length) ||
             in(chunk_ceil, (*cur)->start, (*cur)->length))
         {
-            fprintf(stderr, "error: overlapping chunks: existing: 0x%lx-0x%lx "
-                            "new: 0x%lx-0x%lx\n",
-                            (size_t)(*cur)->start,
-                            (size_t)(*cur)->start + (*cur)->length,
-                            (size_t)chunk->start,
-                            (size_t)chunk_ceil);
+            fprintf(stderr, "error: overlapping chunks: existing: %p-%p "
+                            "new: %p-%p\n",
+                            (*cur)->start,
+                            (*cur)->start + (*cur)->length,
+                            chunk->start,
+                            chunk_ceil);
             return -1;
         }
         if ((*cur)->start > chunk->start)
@@ -196,7 +196,7 @@ static const char *str_mem_region_type(int type)
 static void mem_region_print(const struct mem_region *region)
 {
     fprintf(stderr,
-            "region addr: %lx-%lx len: %lx off: %lx num_chunks: %ld "
+            "region addr: %zx-%zx len: %zx off: %zx num_chunks: %zd "
             "path='%s' fd=%d type=%s\n",
             (size_t)region->start,
             (size_t)region->start+region->length,
@@ -224,8 +224,8 @@ static void mem_region_create_data_chunk_index(struct mem_region *region)
         region->data_index[i++] = cur;
 
         if (i > (int)region->num_data_chunks) {
-            fprintf(stderr, "region 0x%lx: num_data_chunks=%d but cur != NULL\n",
-                    (size_t)region, (int)region->num_data_chunks);
+            fprintf(stderr, "region %p: num_data_chunks=%zd but cur != NULL\n",
+                    region, region->num_data_chunks);
             mem_region_print(region);
             break;
         }
@@ -281,9 +281,9 @@ static int mem_region_map_file(struct mem_region *region)
     size_t length = region->length;
 
     if (region->path == NULL || *region->path == '\0') {
-        fprintf(stderr, "trying to map file for region 0x%lx-0x%lx "
+        fprintf(stderr, "trying to map file for region %p-%p "
                 "with empty path\n",
-                (size_t)region->start, (size_t)region->start + region->length);
+                region->start, region->start + region->length);
         return -1;
     }
 
@@ -315,8 +315,8 @@ static int mem_region_map_file(struct mem_region *region)
 
     if (data == MAP_FAILED) {
         int err = errno;
-        fprintf(stderr, "failed to mmap file %s (length 0x%lx, read, offset "
-                "0x%lx): %s\n", region->path, region->length, region->offset,
+        fprintf(stderr, "failed to mmap file %s (length 0x%zx, read, offset "
+                "0x%zx): %s\n", region->path, region->length, region->offset,
                 strerror(err));
         return -1;
     }
@@ -394,10 +394,10 @@ struct mem_data_chunk *mem_region_find_data_chunk(
     if (region->data_index == NULL) {
         if (region->num_data_chunks) {
             fprintf(stderr,
-                    "error: region 0x%lx-0x%lx is not indexed but "
+                    "error: region %p-%p is not indexed but "
                     "attempting to read word\n",
-                    (size_t)region->start,
-                    (size_t)region->start + region->length);
+                    region->start,
+                    region->start + region->length);
         }
         return NULL;
     }
@@ -424,9 +424,9 @@ static int mem_region_read_word(struct mem_region *region,
     switch (region->type) {
     case MEM_REGION_TYPE_EMPTY:
         fprintf(stderr,
-                "error: trying to read word from empty region 0x%lx-0x%lx\n",
-                (size_t)region->start,
-                (size_t)region->start + region->length);
+                "error: trying to read word from empty region %p-%p\n",
+                region->start,
+                region->start + region->length);
         return -1;
 
     case MEM_REGION_TYPE_DELETED:
@@ -464,17 +464,14 @@ static int mem_region_read_word(struct mem_region *region,
             return -1;
 
         fprintf(stderr,
-                "no chunk of memory containing 0x%lx at region 0x%lx-0x%lx\n",
-                (size_t)addr,
-                (size_t)region->start,
-                (size_t)region->start + region->length);
+                "no chunk of memory containing %p at region %p-%p\n",
+                addr, region->start, region->start + region->length);
         mem_region_print(region);
 
         for (i = 0; i < region->num_data_chunks; ++i) {
             struct mem_data_chunk *chunk = region->data_index[i];
-            fprintf(stderr, "chunk %ld: start 0x%lx length 0x%lx data 0x%lx\n",
-                    i, (size_t)chunk->start, chunk->length,
-                    (size_t)chunk->data);
+            fprintf(stderr, "chunk %zd: start %p length 0x%zx data %p\n",
+                    i, chunk->start, chunk->length, chunk->data);
         }
         return -1;
     }
@@ -536,12 +533,12 @@ int mem_map_add_region(struct mem_map *map, struct mem_region *region)
         if (in(region->start, (*cur)->start, (*cur)->length) ||
             in(region_ceil, (*cur)->start, (*cur)->length))
         {
-            fprintf(stderr, "error: overlapping regions: existing: 0x%lx-0x%lx "
-                            "new: 0x%lx-0x%lx\n",
-                            (size_t)(*cur)->start,
-                            (size_t)(*cur)->start+(*cur)->length,
-                            (size_t)region->start,
-                            (size_t)region_ceil);
+            fprintf(stderr, "error: overlapping regions: existing: %p-%p "
+                            "new: %p-%p\n",
+                            (*cur)->start,
+                            (*cur)->start+(*cur)->length,
+                            region->start,
+                            region_ceil);
             return -1;
         }
         if ((*cur)->start > region->start)
@@ -606,8 +603,8 @@ static struct mem_region *mem_map_find_region(struct mem_map *map, void *addr)
 
     if (region_ptr == NULL) {
         fprintf(stderr,
-                "cannot find region of memory containing 0x%lx\n",
-                (size_t)addr);
+                "cannot find region of memory containing %p\n",
+                addr);
         region = NULL;
     } else {
         region = *region_ptr;
@@ -695,7 +692,7 @@ void mem_map_print(const struct mem_map *map)
 {
     struct mem_region *region;
 
-    fprintf(stderr, "mem map with %ld regions\n", map->num_regions);
+    fprintf(stderr, "mem map with %zd regions\n", map->num_regions);
     region = map->list_head;
     for (; region != NULL; region = region->next)
         mem_region_print(region);

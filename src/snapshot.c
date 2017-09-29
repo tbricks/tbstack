@@ -163,9 +163,9 @@ struct snapshot *get_snapshot(int pid, int *tids, int *index, int nr_tids)
     if (opt_verbose) {
         for (i = 0; i < n_frames; ++i) {
             struct mem_data_chunk *chunk = stacks_cover[i];
-            printf("chunk #%d: 0x%lx-0x%lx length: %ldK\n",
-                    i, (size_t)chunk->start,
-                    (size_t)chunk->start + chunk->length,
+            printf("chunk #%d: %p-%p length: %zdK\n",
+                    i, chunk->start,
+                    chunk->start + chunk->length,
                     chunk->length >> 10);
         }
     }
