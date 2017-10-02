@@ -21,7 +21,7 @@ typedef struct user_regs_struct regs_t;
 #if defined(__arm__)
 #define SP_REG(regs) ((regs)->uregs[13])
 #elif defined(__aarch64__)
-#define SP_REG(r) ((r)->regs[31])
+#define SP_REG(r) ((r)->sp)
 #elif defined(__i386)
 #define SP_REG(regs) ((regs)->esp)
 #elif defined(__x86_64)
