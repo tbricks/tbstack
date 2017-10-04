@@ -15,9 +15,22 @@ AM_SILENT_RULES([yes])
 AC_GNU_SOURCE
 AC_PROG_CC
 
+AC_ARG_WITH([libelf],
+	[AS_HELP_STRING([--with-libelf=PATH],[libelf installation prefix])],
+	[CPPFLAGS="$CPPFLAGS -I$withval/include" LDFLAGS="$LDFLAGS -L$withval/lib"]
+)
+
 AC_SEARCH_LIBS([elf_begin], [elf], [], [
 	AC_MSG_ERROR([unable to find the elf_begin() in libelf])
 ])
+
+AC_ARG_WITH([libdwarf-include],
+	[AS_HELP_STRING([--with-libdwarf-include=PATH],[libdwarf headers])],
+	[CPPFLAGS="$CPPFLAGS -I$withval"]
+)
+
+AC_CHECK_HEADER([dwarf.h], [], [AC_MSG_ERROR([unable to find dwarf.h])], [])
+
 AC_ARG_ENABLE([ptrace],
 	AS_HELP_STRING([--disable-ptrace], [Disable libunwind ptrace (default enabled)]),
 	[use_ptrace=$enableval], [use_ptrace=yes])
