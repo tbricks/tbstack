@@ -131,7 +131,7 @@ struct mem_map *create_maps(int pid)
         if (next != NULL)
             *next = '\0';
 
-        scan = sscanf(str, "%lx-%lx %c%c%c%c %lx %x:%x %d %[^\t\n]",
+        scan = sscanf(str, "%zx-%zx %c%c%c%c %zx %x:%x %d %[^\t\n]",
                 &addr_start, &addr_end,
                 &r, &w, &x, &p,
                 &offset,
@@ -432,8 +432,8 @@ static int copy_memory_process_vm_readv(int pid,
 
         if (seg_count < 0) {
             fprintf(stderr, "unknown number of bytes returned by "
-                    "process_vm_readv: bytes_read=%ld "
-                    "bytes_total=%ld seg_count=%d\n",
+                    "process_vm_readv: bytes_read=%zd "
+                    "bytes_total=%zd seg_count=%d\n",
                     bytes_read, bytes_total, seg_count);
             goto process_vm_readv_end;
         }

@@ -317,7 +317,7 @@ static void summary()
     printf("-----------------------  summary  --------------------------\n"
            " time the process was frozen: %ldms %ldus\n"
            " sleep count: %d\n"
-           " total bytes copied: 0x%lx (%ldK)\n",
+           " total bytes copied: 0x%zx (%zdK)\n",
            tm/1000, tm%1000, sleep_count, total_length, total_length>>10);
 }
 
