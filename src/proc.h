@@ -12,9 +12,9 @@ struct mem_data_chunk;
 struct mem_map;
 
 /*
- * get process state (R, S, D, T, ...)
+ * returns process state (R, S, D, T, ...) or -1 on error
  */
-char proc_state(int pid);
+int proc_state(int pid);
 
 /*
  * parse /proc/<pid>/maps file and create mem_map structure

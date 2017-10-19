@@ -51,11 +51,12 @@ extern int opt_proc_mem;
 extern int opt_use_waitpid_timeout;
 extern int opt_verbose;
 
-char proc_state(int pid)
+int proc_state(int pid)
 {
     FILE *f;
     char buf[128];
-    char c = -1;
+    char c;
+    int res = -1;
 
     sprintf(buf, "/proc/%d/status", pid);
     if ((f = fopen(buf, "r")) == NULL) {
@@ -64,17 +65,19 @@ char proc_state(int pid)
     }
 
     while (fgets(buf, sizeof(buf), f)) {
-        if (sscanf(buf, "State:\t%c", &c) == 1)
+        if (sscanf(buf, "State:\t%c", &c) == 1) {
+            res = c;
             break;
+        }
     }
 
     fclose(f);
-    return c;
+    return res;
 }
 
 static int proc_stopped(int pid)
 {
-    char c = proc_state(pid);
+    int c = proc_state(pid);
     if (c == -1)
         return -1;
 
@@ -243,7 +246,7 @@ char *get_thread_states(const int *tids, int n)
     char *res = calloc(1, n);
 
     for (i = 0; i < n; ++i) {
-        char state = proc_state(tids[i]);
+        int state = proc_state(tids[i]);
         if (state < 0) {
             fprintf(stderr, "warning: could not get state of thread %d\n",
                     tids[i]);
