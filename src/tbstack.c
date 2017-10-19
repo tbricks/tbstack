@@ -57,7 +57,7 @@ static int usage(const char *name)
 "          --ptrace              use libunwind-ptrace interface (slower)\n"
 #endif
 "          --show-rsp            show %%rsp in second column\n"
-"          --show-state          show thread state before freeze\n"
+"          --show-state          show thread states\n"
 "          --stack-size <size>   maximum stack size to copy (default is current\n"
 "                                RLIMIT_STACK)\n"
 "          --stop-timeout        timeout for waiting the process to freeze, in\n"
