@@ -89,9 +89,6 @@ struct snapshot *get_snapshot(int pid, int *tids, int *index, int nr_tids)
         goto get_snapshot_fail;
     }
 
-    /*
-     * get thread states if requested by user
-     */
     if (opt_show_state)
         res->states = get_thread_states(res->tids, res->num_threads);
 
