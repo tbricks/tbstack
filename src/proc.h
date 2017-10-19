@@ -33,7 +33,8 @@ int print_proc_maps(int pid);
 int get_threads(int pid, int **tids);
 
 /*
- * get thread states
+ * returns a pointer to dynamically allocated array of characters representing
+ * thread states as found in /proc/<pid>/status
  */
 char *get_thread_states(const int *tids, int n);
 
