@@ -102,7 +102,7 @@ static int backtrace_thread(unw_accessors_t *accessors, void *arg)
 }
 
 void print_thread_heading(const int *index, const int *tids,
-        const char *states, int i)
+        const char states[], int i)
 {
     int ind = (index != NULL ? index[i] : i+1);
     if (opt_show_state) {
