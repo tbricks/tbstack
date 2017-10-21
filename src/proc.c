@@ -486,7 +486,7 @@ static int copy_memory_proc_mem(int pid, struct mem_data_chunk **frames,
             ssize_t rd = pread(fd, to, count, from);
 
             if (rd == -1) {
-                fprintf(stderr, "pread() at %s:0x%lx (#%d) failed: %s [%d]\n",
+                fprintf(stderr, "pread() at %s:0x%jx (#%d) failed: %s [%d]\n",
                         fname, from, i, strerror(errno), errno);
                 goto proc_mem_end;
             }
