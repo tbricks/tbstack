@@ -15,6 +15,8 @@ AM_SILENT_RULES([yes])
 AC_GNU_SOURCE
 AC_PROG_CC
 
+AC_SYS_LARGEFILE
+
 AC_SEARCH_LIBS([elf_begin], [elf], [], [
 	AC_MSG_ERROR([unable to find the elf_begin() in libelf])
 ])
