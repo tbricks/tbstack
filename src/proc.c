@@ -29,7 +29,13 @@
 #include <unistd.h>
 
 #ifndef SYS_process_vm_readv
+#if defined(__i386)
+#define SYS_process_vm_readv 365
+#elif defined(__x86_64)
 #define SYS_process_vm_readv 310
+#else
+#error SYS_process_vm_readv is undefined
+#endif
 #endif
 
 #define SLEEP_WAIT 500
