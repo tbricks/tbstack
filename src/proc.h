@@ -45,6 +45,12 @@ int adjust_threads(int *tids, int nr_tids, int *user_tids,
         int *index, int nr_user);
 
 /*
+ * filter threads by state. returns new number of threads
+ */
+int filter_threads(int tids[], int index[], char states[], int nr_tids,
+        const char *user_states);
+
+/*
  * attach to the process, wait until it's stopped,
  * send SIGSTOP to make all threads frozen
  */

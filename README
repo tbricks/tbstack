@@ -42,6 +42,7 @@ USAGE
 
 usage:    tbstack <pid>
           tbstack <pid>/<tid1>,...,<tidn>
+          tbstack <pid>/RS
 
 options:  --help                show this
           --ignore-deleted      try to open shared objects marked as deleted

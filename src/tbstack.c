@@ -42,12 +42,14 @@ int opt_verbose = 0;
 int stop_timeout = 1000000;
 int opt_ignore_deleted = 0;
 int opt_use_waitpid_timeout = 0;
+char *opt_thread_states = NULL;
 
 static int usage(const char *name)
 {
     fprintf(stderr,
 "usage:    %s <pid>\n"
-"          %s <pid>/<tid1>,...,<tidn>\n\n"
+"          %s <pid>/<tid1>,...,<tidn>\n"
+"          %s <pid>/RS\n\n"
 "options:  --help                show this\n"
 "          --ignore-deleted      try to open shared objects marked as deleted\n"
 "          --use-waitpid-timeout set alarm to interrupt waitpid\n"
@@ -63,7 +65,7 @@ static int usage(const char *name)
 "          --stop-timeout        timeout for waiting the process to freeze, in\n"
 "                                milliseconds. default value is %d\n"
 "          --verbose             verbose error messages\n",
-        name, name, stop_timeout/1000);
+        name, name, name, stop_timeout/1000);
     return 2;
 }
 
@@ -90,6 +92,21 @@ static void parse_pid_arg(const char *prog, char *arg)
     if (tstr != NULL) {
         char c, prev = '\0';
         int i = 0, j;
+        int is_state_list = 1;
+
+        /* check if state list is provided */
+        pos = tstr;
+        while ((c = *pos++)) {
+            if (!isalpha(c)) {
+                is_state_list = 0;
+                break;
+            }
+        }
+
+        if (is_state_list) {
+            opt_thread_states = strdup(tstr);
+            return;
+        }
 
         pos = tstr;
         if (*pos == ',')
