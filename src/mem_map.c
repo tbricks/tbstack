@@ -171,7 +171,7 @@ static struct mem_data_chunk *mem_region_alloc_chunk(struct mem_region *region,
     return chunk;
 }
 
-static const char *str_mem_region_type(int type)
+const char *str_mem_region_type(int type)
 {
     switch (type)
     {

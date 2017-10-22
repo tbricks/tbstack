@@ -809,10 +809,15 @@ static int get_proc_name(unw_addr_space_t as, unw_word_t addr, char *bufp,
 
     if (name == NULL) {
         /*
-         * if name cannot be resolved, print binary file name
+         * if name cannot be resolved, print binary file name or region type
          */
-        const char *base = basename(region->path);
-        snprintf(bufp, buf_len, "?? (%s)", base);
+        if (region->type == MEM_REGION_TYPE_MMAP) {
+            const char *base = basename(region->path);
+            snprintf(bufp, buf_len, "?? (%s)", base);
+        } else {
+            snprintf(bufp, buf_len, "?? [%s]",
+                    str_mem_region_type(region->type));
+        }
         *offp = 0;
         return 0;
     }
