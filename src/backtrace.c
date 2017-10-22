@@ -43,6 +43,7 @@ static int backtrace_thread(unw_accessors_t *accessors, void *arg)
         unw_word_t ip, sp = -1, off;
         static char buf[512];
         size_t len;
+        int is_sig;
 
         if ((rc = unw_get_reg(&cursor, UNW_REG_IP, &ip)) < 0) {
             fprintf(stderr, "failed to get IP: rc=%d\n", rc);
@@ -65,6 +66,11 @@ static int backtrace_thread(unw_accessors_t *accessors, void *arg)
 
         if (!ip)
             break;
+
+        is_sig = unw_is_signal_frame(&cursor);
+        if (is_sig > 0) {
+            printf(" <signal handler called>\n");
+        }
 
         if (off) {
             sprintf(buf + len, " + 0x%lx", (unsigned long)off);
