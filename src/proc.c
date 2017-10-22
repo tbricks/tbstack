@@ -296,6 +296,27 @@ int adjust_threads(int *tids, int nr_tids, int *user_tids,
     return 0;
 }
 
+int filter_threads(int tids[], int index[], char states[], int nr_tids,
+        const char *user_states)
+{
+    int i, j = 0;
+    int nr_prev = nr_tids;
+    for (i = 0; i < nr_prev; ++i) {
+        if (strchr(user_states, states[i]) != NULL) {
+            if (i != j) {
+                tids[j] = tids[i];
+                states[j] = states[i];
+                if (index != NULL)
+                    index[j] = index[i];
+            }
+            ++j;
+        } else {
+            --nr_tids;
+        }
+    }
+    return nr_tids;
+}
+
 int attach_process(int pid)
 {
     int status = 0;

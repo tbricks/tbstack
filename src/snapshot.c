@@ -9,6 +9,7 @@
 #include "proc.h"
 #include "snapshot.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/ptrace.h>
@@ -25,6 +26,7 @@
 extern size_t stack_size;
 extern int opt_show_state;
 extern int opt_verbose;
+extern char *opt_thread_states;
 
 void snapshot_destroy(struct snapshot *snap)
 {
@@ -85,6 +87,17 @@ struct snapshot *get_snapshot(int pid, int *tids, int *index, int nr_tids)
         res->tids = tids;
     }
 
+    if (opt_show_state || opt_thread_states)
+        res->states = get_thread_states(res->tids, res->num_threads);
+
+    if (opt_thread_states) {
+        assert(tids == NULL);
+        res->num_threads = filter_threads(res->tids, index, res->states,
+                res->num_threads, opt_thread_states);
+        if (!res->num_threads)
+            return res;
+    }
+
     res->cur_thr = 0;
 
     res->regs = malloc(sizeof(res->regs[0])*res->num_threads);
@@ -92,9 +105,6 @@ struct snapshot *get_snapshot(int pid, int *tids, int *index, int nr_tids)
         perror("malloc");
         goto get_snapshot_fail;
     }
-
-    if (opt_show_state)
-        res->states = get_thread_states(res->tids, res->num_threads);
 
     /* FREEZE PROCESS */
     if (attach_process(pid) < 0)

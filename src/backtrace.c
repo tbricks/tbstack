@@ -24,6 +24,7 @@ extern unw_accessors_t snapshot_addr_space_accessors;
 extern int opt_show_rsp;
 extern int opt_show_state;
 extern int opt_verbose;
+extern char *opt_thread_states;
 
 static int backtrace_thread(unw_accessors_t *accessors, void *arg)
 {
@@ -162,8 +163,11 @@ int backtrace_ptrace(int pid, int *tids, int *index, int nr_tids)
         threads = tids;
     }
 
-    if (opt_show_state)
+    if (opt_show_state || opt_thread_states)
         states = get_thread_states(threads, count);
+
+    if (opt_thread_states)
+        count = filter_threads(threads, index, states, count, opt_thread_states);
 
     if (attach_process(pid) < 0)
         return -1;
