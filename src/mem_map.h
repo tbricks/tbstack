@@ -79,6 +79,9 @@ struct mem_map
 /*
  * mem region
  */
+
+const char *str_mem_region_type(int type);
+
 void mem_region_init(struct mem_region *region);
 
 /*
