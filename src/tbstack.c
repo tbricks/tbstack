@@ -73,6 +73,9 @@ static void parse_pid_arg(const char *prog, char *arg)
 {
     char *tstr, *pos;
     int nr_commas = 0;
+    char c, prev = '\0';
+    int i = 0, j;
+    int is_state_list = 1;
 
     tstr = strchr(arg, '/');
     if (tstr != NULL) {
@@ -89,58 +92,55 @@ static void parse_pid_arg(const char *prog, char *arg)
         exit(usage(prog));
     }
 
-    if (tstr != NULL) {
-        char c, prev = '\0';
-        int i = 0, j;
-        int is_state_list = 1;
+    if (tstr == NULL)
+        return;
 
-        /* check if state list is provided */
-        pos = tstr;
-        while ((c = *pos++)) {
-            if (!isalpha(c)) {
-                is_state_list = 0;
-                break;
-            }
+    /* check if state list is provided */
+    pos = tstr;
+    while ((c = *pos++)) {
+        if (!isalpha(c)) {
+            is_state_list = 0;
+            break;
         }
+    }
 
-        if (is_state_list) {
-            opt_thread_states = strdup(tstr);
-            return;
-        }
+    if (is_state_list) {
+        opt_thread_states = strdup(tstr);
+        return;
+    }
 
-        pos = tstr;
-        if (*pos == ',')
-            goto parse_pid_arg_invalid_list;
-        while ((c = *pos++)) {
-            if (c == ',') {
-                if (prev == ',' || prev == '\0')
-                    goto parse_pid_arg_invalid_list;
-                ++nr_commas;
-            } else if (!isdigit(c)) {
+    pos = tstr;
+    if (*pos == ',')
+        goto parse_pid_arg_invalid_list;
+    while ((c = *pos++)) {
+        if (c == ',') {
+            if (prev == ',' || prev == '\0')
                 goto parse_pid_arg_invalid_list;
-            }
-            prev = c;
-        }
-        if (prev == ',')
+            ++nr_commas;
+        } else if (!isdigit(c)) {
             goto parse_pid_arg_invalid_list;
+        }
+        prev = c;
+    }
+    if (prev == ',')
+        goto parse_pid_arg_invalid_list;
 
-        nr_tids = nr_commas + 1;
-        tid_list = malloc(sizeof(int) * nr_tids);
-        tid_index = malloc(sizeof(int) * nr_tids);
+    nr_tids = nr_commas + 1;
+    tid_list = malloc(sizeof(int) * nr_tids);
+    tid_index = malloc(sizeof(int) * nr_tids);
 
-        tstr = strtok(tstr, ",");
-        do {
-            assert(i < nr_tids);
-            tid_list[i++] = atoi(tstr);
-        } while ((tstr = strtok(NULL, ",")) != NULL);
+    tstr = strtok(tstr, ",");
+    do {
+        assert(i < nr_tids);
+        tid_list[i++] = atoi(tstr);
+    } while ((tstr = strtok(NULL, ",")) != NULL);
 
 
-        for (i = 0; i < nr_tids; ++i) {
-            for (j = i + 1; j < nr_tids; ++j) {
-                if (tid_list[i] == tid_list[j]) {
-                    fprintf(stderr, "duplicate thread %d\n", tid_list[i]);
-                    exit(usage(prog));
-                }
+    for (i = 0; i < nr_tids; ++i) {
+        for (j = i + 1; j < nr_tids; ++j) {
+            if (tid_list[i] == tid_list[j]) {
+                fprintf(stderr, "duplicate thread %d\n", tid_list[i]);
+                exit(usage(prog));
             }
         }
     }
