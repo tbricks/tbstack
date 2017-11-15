@@ -41,8 +41,8 @@ extern int search_unwind_table(unw_addr_space_t as, unw_word_t ip,
 #ifdef HAVE_DWARF
 #define dwarf_find_debug_frame UNW_OBJ(dwarf_find_debug_frame)
 
-extern int
-UNW_OBJ(dwarf_find_debug_frame)(int found, unw_dyn_info_t *di_debug,
+extern int dwarf_find_debug_frame(int found,
+                                unw_dyn_info_t *di_debug,
                                 unw_word_t ip,
                                 unw_word_t segbase,
                                 const char *obj_name, unw_word_t start,
@@ -567,7 +567,8 @@ static int find_proc_info(unw_addr_space_t as, unw_word_t ip,
     }
 
     if (dwarf_find_debug_frame(0, &di, ip, base, region->path,
-                region->start, region->start + region->length))
+                (unw_word_t) region->start,
+                (unw_word_t) region->start + region->length))
             return search_unwind_table(as, ip, &di, pip, need_unwind_info, arg);
 #endif
 
