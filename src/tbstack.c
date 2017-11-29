@@ -64,7 +64,8 @@ static int usage(const char *name)
 "                                RLIMIT_STACK)\n"
 "          --stop-timeout        timeout for waiting the process to freeze, in\n"
 "                                milliseconds. default value is %d\n"
-"          --verbose             verbose error messages\n",
+"          --verbose             verbose error messages\n"
+"          --version             output version information and exit\n",
         name, name, name, stop_timeout/1000);
     return 2;
 }
@@ -169,6 +170,7 @@ static void parse_options(int argc, char **argv)
             { "ignore-deleted", 0, NULL, 0},
             { "use-waitpid-timeout", 0, NULL, 0 },
             { "show-state", 0, NULL, 0 },
+            { "version", 0, NULL, 0 },
             { 0, 0, 0, 0 }
         };
 
@@ -235,6 +237,10 @@ static void parse_options(int argc, char **argv)
             case 9:
                 opt_show_state = 1;
                 break;
+
+            case 10:
+                puts(PACKAGE_STRING);
+                exit(0);
 
             default:
                 break;
