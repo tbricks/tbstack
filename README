@@ -57,6 +57,7 @@ options:  --help                show this
           --stop-timeout        timeout for waiting the process to freeze, in
                                 milliseconds. default value is 1000
           --verbose             verbose error messages
+          --version             output version information and exit
 
 --------------------------------------------------------------------------------
 HOW IT WORKS
