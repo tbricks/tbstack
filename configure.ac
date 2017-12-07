@@ -1,5 +1,5 @@
 AC_PREREQ(2.60)
-AC_INIT([tbstack], [0.1])
+AC_INIT([tbstack], [1.0])
 AM_INIT_AUTOMAKE([
 	foreign
 	1.11
